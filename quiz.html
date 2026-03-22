@@ -1,130 +1,188 @@
-<script>
-const quizId = new URLSearchParams(location.search).get('id');
-let quiz = null, page = 1, perPage = 10, answers = {};
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Take Quiz</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-firebase.auth().onAuthStateChanged(async u => {
-  if (!u) {
-    location = 'index.html';
-    return;
-  }
+  <nav style="background:#4a90d9;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:1.3em;font-weight:bold;color:#fff;">📝 Quiz App</span>
+    <div id="navRight" style="display:flex;align-items:center;gap:12px;"></div>
+  </nav>
 
-  const uDoc = await db.collection('users').doc(u.uid).get();
-  const userData = uDoc.data();
+  <div id="loading" class="box center"><h2>Loading quiz...</h2></div>
 
-  $('navRight').innerHTML =
-    `<span>${userData.name}</span>
-     <a href="index.html">Dashboard</a>
-     <a href="#" onclick="logout()">Logout</a>`;
+  <div id="quizArea" style="display:none">
+    <div class="box">
+      <h2 id="qzTitle"></h2>
+      <p id="qzInfo"></p>
+    </div>
+    <div id="qzQuestions"></div>
+    <div class="pages" id="qzPages"></div>
+    <div id="qzSubmit" class="center"></div>
+  </div>
 
-  // ✅ ACCESS CONTROL FIXED
-  if (!userData.isAdmin) {
-    if (!userData.access || !userData.access.includes(quizId)) {
-      flash('No access to this quiz', false);
-      setTimeout(() => location = 'index.html', 1500);
-      return;
+  <div id="msg"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+  <script src="app.js"></script>
+
+  <script>
+    // --- Global Variables ---
+    var quizId = new URLSearchParams(window.location.search).get('id');
+    var quiz = null;
+    var page = 1;
+    var perPage = 10;
+    var answers = {};
+
+    // --- Initial Load Logic ---
+    if (typeof firebase === 'undefined') {
+      document.getElementById('loading').innerHTML = '<h2 style="color:red;">Error: Firebase failed to load.</h2>';
+    } else {
+      if (!quizId) {
+        document.getElementById('loading').innerHTML = '<h2 style="color:red;">No quiz ID found</h2>';
+      } else {
+        firebase.auth().onAuthStateChanged(function(u) {
+          if (!u) {
+            window.location = 'index.html';
+            return;
+          }
+          loadQuiz(u);
+        });
+      }
     }
-  }
 
-  // Check already attempted
-  const att = await db.collection('attempts')
-    .where('userId', '==', u.uid)
-    .where('quizId', '==', quizId)
-    .get();
+    async function loadQuiz(u) {
+      try {
+        var uDoc = await db.collection('users').doc(u.uid).get();
+        if (uDoc.exists) setNav(uDoc.data().name);
 
-  if (!att.empty) {
-    location = 'result.html?id=' + att.docs[0].id;
-    return;
-  }
+        var acc = await db.collection('access').where('userId', '==', u.uid).where('quizId', '==', quizId).get();
+        if (acc.empty) {
+          document.getElementById('loading').style.display = 'none';
+          flash('No access to this quiz', false);
+          return;
+        }
 
-  // Load quiz
-  const qDoc = await db.collection('quizzes').doc(quizId).get();
-  if (!qDoc.exists) {
-    flash('Quiz not found', false);
-    return;
-  }
+        var att = await db.collection('attempts').where('userId', '==', u.uid).where('quizId', '==', quizId).get();
+        if (!att.empty) {
+          window.location = 'result.html?id=' + att.docs[0].id;
+          return;
+        }
 
-  quiz = qDoc.data();
-  $('qzTitle').textContent = quiz.title;
+        var qDoc = await db.collection('quizzes').doc(quizId).get();
+        if (!qDoc.exists) {
+          document.getElementById('loading').style.display = 'none';
+          flash('Quiz not found', false);
+          return;
+        }
 
-  // Restore saved answers
-  const saved = localStorage.getItem('ans_' + quizId);
-  if (saved) answers = JSON.parse(saved);
+        quiz = qDoc.data();
+        document.getElementById('qzTitle').textContent = quiz.title;
 
-  $('quizArea').style.display = 'block';
-  renderPage();
-});
+        var saved = localStorage.getItem('ans_' + quizId);
+        if (saved) {
+          try { answers = JSON.parse(saved); } catch(e) { answers = {}; }
+        }
 
-function renderPage() {
-  const total = quiz.questions.length;
-  const totalPages = Math.ceil(total / perPage);
-  const start = (page - 1) * perPage;
-  const pageQs = quiz.questions.slice(start, start + perPage);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('quizArea').style.display = 'block';
+        renderPage();
+      } catch (e) {
+        console.error('Error loading quiz:', e);
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
 
-  $('qzInfo').textContent = `${total} questions | Page ${page} of ${totalPages}`;
+    function renderPage() {
+      var total = quiz.questions.length;
+      var totalPages = Math.ceil(total / perPage);
+      var start = (page - 1) * perPage;
+      var pageQs = quiz.questions.slice(start, start + perPage);
 
-  let html = '';
-  pageQs.forEach((q, i) => {
-    const num = start + i + 1;
-    html += `<div class="q-block">
-      <strong>Q${num}. ${q.text}</strong>
-      ${['a','b','c','d'].map(o => `
-        <div class="radio-opt" onclick="pick('${q.id}','${o}',this)">
-          <input type="radio" name="${q.id}" value="${o}" ${answers[q.id]===o?'checked':''}>
-          <label>${o.toUpperCase()}. ${q[o]}</label>
-        </div>`).join('')}
-    </div>`;
-  });
+      document.getElementById('qzInfo').textContent = total + ' questions | Page ' + page + ' of ' + totalPages;
 
-  $('qzQuestions').innerHTML = html;
+      var html = '';
+      for (var i = 0; i < pageQs.length; i++) {
+        var q = pageQs[i];
+        var num = start + i + 1;
+        html += '<div class="q-block"><strong>Q' + num + '. ' + q.text + '</strong>';
+        var opts = ['a', 'b', 'c', 'd'];
+        for (var j = 0; j < opts.length; j++) {
+          var o = opts[j];
+          var checked = answers[q.id] === o ? 'checked' : '';
+          html += '<div class="radio-opt" onclick="pick(\'' + q.id + '\',\'' + o + '\',this)">' +
+            '<input type="radio" name="' + q.id + '" value="' + o + '" ' + checked + '>' +
+            '<label>' + o.toUpperCase() + '. ' + q[o] + '</label></div>';
+        }
+        html += '</div>';
+      }
+      document.getElementById('qzQuestions').innerHTML = html;
 
-  let pHtml = '';
-  if (page > 1) pHtml += `<a href="#" onclick="goPage(${page-1})">« Prev</a>`;
-  for (let i = 1; i <= totalPages; i++) {
-    pHtml += i === page ? `<span>${i}</span>` : `<a href="#" onclick="goPage(${i})">${i}</a>`;
-  }
-  if (page < totalPages) pHtml += `<a href="#" onclick="goPage(${page+1})">Next »</a>`;
+      var pHtml = '';
+      if (page > 1) pHtml += '<a href="#" onclick="goPage(' + (page - 1) + ');return false;">« Prev</a>';
+      for (var p = 1; p <= totalPages; p++) {
+        if (p === page) pHtml += '<span>' + p + '</span>';
+        else pHtml += '<a href="#" onclick="goPage(' + p + ');return false;">' + p + '</a>';
+      }
+      if (page < totalPages) pHtml += '<a href="#" onclick="goPage(' + (page + 1) + ');return false;">Next »</a>';
+      document.getElementById('qzPages').innerHTML = pHtml;
 
-  $('qzPages').innerHTML = pHtml;
+      if (page === totalPages) {
+        document.getElementById('qzSubmit').innerHTML = '<button class="btn green" style="font-size:18px;padding:14px 40px;margin:16px" onclick="submitQuiz()">Submit Quiz</button>';
+      } else {
+        document.getElementById('qzSubmit').innerHTML = '';
+      }
+    }
 
-  $('qzSubmit').innerHTML = page === totalPages
-    ? '<button class="btn green" onclick="submitQuiz()">Submit Quiz</button>'
-    : '';
-}
+    function pick(qid, val, el) {
+      answers[qid] = val;
+      el.querySelector('input').checked = true;
+      localStorage.setItem('ans_' + quizId, JSON.stringify(answers));
+    }
 
-function pick(qid, val, el) {
-  answers[qid] = val;
-  el.querySelector('input').checked = true;
-  localStorage.setItem('ans_' + quizId, JSON.stringify(answers));
-}
+    function goPage(p) {
+      page = p;
+      renderPage();
+      window.scrollTo(0, 0);
+    }
 
-function goPage(p) {
-  page = p;
-  renderPage();
-  window.scrollTo(0, 0);
-}
-
-async function submitQuiz() {
-  if (!confirm('Submit quiz?')) return;
-
-  const uid = firebase.auth().currentUser.uid;
-  let score = 0;
-
-  quiz.questions.forEach(q => {
-    if (answers[q.id] === q.correct) score++;
-  });
-
-  const attempt = {
-    userId: uid,
-    quizId,
-    answers,
-    score,
-    total: quiz.questions.length,
-    date: new Date().toISOString()
-  };
-
-  const ref = await db.collection('attempts').add(attempt);
-
-  localStorage.removeItem('ans_' + quizId);
-  location = 'result.html?id=' + ref.id;
-}
-</script>
+    // --- THE FIX: Defined outside to be globally accessible ---
+    async function submitQuiz() {
+      if (!confirm('Submit quiz? You cannot change answers after this.')) return;
+      try {
+        var uid = firebase.auth().currentUser.uid;
+        var score = 0;
+        for (var i = 0; i < quiz.questions.length; i++) {
+          var q = quiz.questions[i];
+          if (answers[q.id] === q.correct) score++;
+        }
+        var attempt = {
+          userId: uid,
+          quizId: quizId,
+          answers: answers,
+          score: score,
+          total: quiz.questions.length,
+          date: new Date().toISOString()
+        };
+        
+        // Ensure db is ready
+        var ref = await db.collection('attempts').add(attempt);
+        localStorage.removeItem('ans_' + quizId);
+        
+        // Redirect to result.html
+        window.location.href = 'result.html?id=' + ref.id;
+      } catch (e) {
+        console.error('Submit error:', e);
+        alert('Error submitting: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>
