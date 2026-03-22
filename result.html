@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Result</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">📝 Quiz App</span>
+    <div id="navRight"></div>
+  </nav>
+
+  <div id="resultArea" style="display:none"></div>
+  <div id="msg"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const attemptId = new URLSearchParams(location.search).get('id');
+
+    firebase.auth().onAuthStateChanged(async u => {
+      if (!u) { location = 'index.html'; return; }
+      const uDoc = await db.collection('users').doc(u.uid).get();
+      const isAdmin = uDoc.data().isAdmin;
+      $('navRight').innerHTML = `<span>${uDoc.data().name}</span>
+        <a href="${isAdmin ? 'admin.html' : 'index.html'}">Dashboard</a>
+        <a href="#" onclick="logout()">Logout</a>`;
+
+      const aDoc = await db.collection('attempts').doc(attemptId).get();
+      if (!aDoc.exists) { flash('Not found', false); return; }
+      const attempt = aDoc.data();
+
+      // Only allow own results or admin
+      if (attempt.userId !== u.uid && !isAdmin) { flash('Access denied', false); return; }
+
+      const qDoc = await db.collection('quizzes').doc(attempt.quizId).get();
+      if (!qDoc.exists) { flash('Quiz deleted', false); return; }
+      const quiz = qDoc.data();
+
+      const pct = Math.round(attempt.score / attempt.total * 100);
+      const color = pct >= 70 ? '#27ae60' : pct >= 40 ? '#f39c12' : '#e74c3c';
+
+      let html = `
+        <div class="box">
+          <h2>${quiz.title} — Result</h2>
+          <div class="score" style="color:${color}">${attempt.score} / ${attempt.total}
+            <div style="font-size:.4em;color:#666">${pct}%</div>
+          </div>
+        </div>`;
+
+      quiz.questions.forEach((q, i) => {
+        const ans = attempt.answers[q.id] || '';
+        const correct = ans === q.correct;
+        html += `<div class="q-block ${correct ? 'correct' : 'wrong'}">
+          <strong>Q${i + 1}. ${q.text}</strong>
+          ${['a','b','c','d'].map(o => {
+            let cls = '';
+            if (o === q.correct) cls = 'style="font-weight:bold;color:#27ae60"';
+            if (o === ans && o !== q.correct) cls = 'style="color:#e74c3c;text-decoration:line-through"';
+            return `<div class="opt" ${cls}>${o.toUpperCase()}. ${q[o]}
+              ${o === q.correct ? ' ✅' : ''}${o === ans && o !== q.correct ? ' ❌' : ''}
+              ${o === ans && o === q.correct ? ' (Your answer)' : ''}
+              ${o === ans && o !== q.correct ? ' (Your answer)' : ''}
+            </div>`;
+          }).join('')}
+          ${q.explanation ? `<div class="explain">📖 <strong>Explanation:</strong> ${q.explanation}</div>` : ''}
+        </div>`;
+      });
+
+      html += `<div class="center" style="margin:20px">
+        <a class="btn blue" href="${isAdmin ? 'admin.html' : 'index.html'}">Back to Dashboard</a></div>`;
+
+      $('resultArea').innerHTML = html;
+      $('resultArea').style.display = 'block';
+    });
+  </script>
+</body>
+</html>

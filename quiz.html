@@ -1,0 +1,130 @@
+<script>
+const quizId = new URLSearchParams(location.search).get('id');
+let quiz = null, page = 1, perPage = 10, answers = {};
+
+firebase.auth().onAuthStateChanged(async u => {
+  if (!u) {
+    location = 'index.html';
+    return;
+  }
+
+  const uDoc = await db.collection('users').doc(u.uid).get();
+  const userData = uDoc.data();
+
+  $('navRight').innerHTML =
+    `<span>${userData.name}</span>
+     <a href="index.html">Dashboard</a>
+     <a href="#" onclick="logout()">Logout</a>`;
+
+  // ✅ ACCESS CONTROL FIXED
+  if (!userData.isAdmin) {
+    if (!userData.access || !userData.access.includes(quizId)) {
+      flash('No access to this quiz', false);
+      setTimeout(() => location = 'index.html', 1500);
+      return;
+    }
+  }
+
+  // Check already attempted
+  const att = await db.collection('attempts')
+    .where('userId', '==', u.uid)
+    .where('quizId', '==', quizId)
+    .get();
+
+  if (!att.empty) {
+    location = 'result.html?id=' + att.docs[0].id;
+    return;
+  }
+
+  // Load quiz
+  const qDoc = await db.collection('quizzes').doc(quizId).get();
+  if (!qDoc.exists) {
+    flash('Quiz not found', false);
+    return;
+  }
+
+  quiz = qDoc.data();
+  $('qzTitle').textContent = quiz.title;
+
+  // Restore saved answers
+  const saved = localStorage.getItem('ans_' + quizId);
+  if (saved) answers = JSON.parse(saved);
+
+  $('quizArea').style.display = 'block';
+  renderPage();
+});
+
+function renderPage() {
+  const total = quiz.questions.length;
+  const totalPages = Math.ceil(total / perPage);
+  const start = (page - 1) * perPage;
+  const pageQs = quiz.questions.slice(start, start + perPage);
+
+  $('qzInfo').textContent = `${total} questions | Page ${page} of ${totalPages}`;
+
+  let html = '';
+  pageQs.forEach((q, i) => {
+    const num = start + i + 1;
+    html += `<div class="q-block">
+      <strong>Q${num}. ${q.text}</strong>
+      ${['a','b','c','d'].map(o => `
+        <div class="radio-opt" onclick="pick('${q.id}','${o}',this)">
+          <input type="radio" name="${q.id}" value="${o}" ${answers[q.id]===o?'checked':''}>
+          <label>${o.toUpperCase()}. ${q[o]}</label>
+        </div>`).join('')}
+    </div>`;
+  });
+
+  $('qzQuestions').innerHTML = html;
+
+  let pHtml = '';
+  if (page > 1) pHtml += `<a href="#" onclick="goPage(${page-1})">« Prev</a>`;
+  for (let i = 1; i <= totalPages; i++) {
+    pHtml += i === page ? `<span>${i}</span>` : `<a href="#" onclick="goPage(${i})">${i}</a>`;
+  }
+  if (page < totalPages) pHtml += `<a href="#" onclick="goPage(${page+1})">Next »</a>`;
+
+  $('qzPages').innerHTML = pHtml;
+
+  $('qzSubmit').innerHTML = page === totalPages
+    ? '<button class="btn green" onclick="submitQuiz()">Submit Quiz</button>'
+    : '';
+}
+
+function pick(qid, val, el) {
+  answers[qid] = val;
+  el.querySelector('input').checked = true;
+  localStorage.setItem('ans_' + quizId, JSON.stringify(answers));
+}
+
+function goPage(p) {
+  page = p;
+  renderPage();
+  window.scrollTo(0, 0);
+}
+
+async function submitQuiz() {
+  if (!confirm('Submit quiz?')) return;
+
+  const uid = firebase.auth().currentUser.uid;
+  let score = 0;
+
+  quiz.questions.forEach(q => {
+    if (answers[q.id] === q.correct) score++;
+  });
+
+  const attempt = {
+    userId: uid,
+    quizId,
+    answers,
+    score,
+    total: quiz.questions.length,
+    date: new Date().toISOString()
+  };
+
+  const ref = await db.collection('attempts').add(attempt);
+
+  localStorage.removeItem('ans_' + quizId);
+  location = 'result.html?id=' + ref.id;
+}
+</script>

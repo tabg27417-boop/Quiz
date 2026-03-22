@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">📝 Quiz App</span>
+    <div id="navRight"></div>
+  </nav>
+
+  <div class="box" id="authBox">
+    <div id="loginForm">
+      <h2>Login</h2>
+      <input id="lEmail" type="email" placeholder="Email">
+      <input id="lPass" type="password" placeholder="Password">
+      <button class="btn blue" onclick="login()">Login</button>
+      <p>No account? <a href="#" onclick="showReg()">Register</a></p>
+    </div>
+    <div id="regForm" style="display:none">
+      <h2>Register</h2>
+      <input id="rName" placeholder="Full Name">
+      <input id="rEmail" type="email" placeholder="Email">
+      <input id="rPass" type="password" placeholder="Password">
+      <button class="btn blue" onclick="register()">Register</button>
+      <p>Have account? <a href="#" onclick="showLogin()">Login</a></p>
+    </div>
+  </div>
+
+  <div id="dashboard" style="display:none">
+    <h1 id="welcome"></h1>
+    <div class="box">
+      <h2>Your Quizzes</h2>
+      <div id="quizList"></div>
+    </div>
+  </div>
+
+  <div id="msg"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+  <script>
+    firebase.auth().onAuthStateChanged(async u => {
+      if (u) {
+        const doc = await db.collection('users').doc(u.uid).get();
+        const data = doc.data();
+        if (data.isAdmin) { window.location = 'admin.html'; return; }
+        $('authBox').style.display = 'none';
+        $('dashboard').style.display = 'block';
+        $('welcome').textContent = 'Welcome, ' + data.name + '!';
+        $('navRight').innerHTML = `<span>${data.name}</span><a href="#" onclick="logout()">Logout</a>`;
+        loadStudentQuizzes(u.uid);
+      } else {
+        $('authBox').style.display = 'block';
+        $('dashboard').style.display = 'none';
+        $('navRight').innerHTML = '';
+      }
+    });
+
+    async function loadStudentQuizzes(uid) {
+      const accessSnap = await db.collection('access').where('userId', '==', uid).get();
+      const quizIds = accessSnap.docs.map(d => d.data().quizId);
+      const attemptSnap = await db.collection('attempts').where('userId', '==', uid).get();
+      const attempted = {};
+      attemptSnap.docs.forEach(d => { attempted[d.data().quizId] = d.id; });
+
+      if (quizIds.length === 0) {
+        $('quizList').innerHTML = '<p class="muted">No quizzes assigned yet.</p>';
+        return;
+      }
+
+      let html = '<table><tr><th>Quiz</th><th>Questions</th><th>Status</th><th>Action</th></tr>';
+      for (const qid of quizIds) {
+        const qDoc = await db.collection('quizzes').doc(qid).get();
+        if (!qDoc.exists) continue;
+        const q = qDoc.data();
+        const done = attempted[qid];
+        html += `<tr>
+          <td>${q.title}</td>
+          <td>${q.questions.length}</td>
+          <td>${done ? '<span class="badge green">Done</span>' : '<span class="badge blue">Pending</span>'}</td>
+          <td>${done
+            ? `<a class="btn sm gray" href="result.html?id=${done}">Result</a>`
+            : `<a class="btn sm blue" href="quiz.html?id=${qid}">Start</a>`}</td>
+        </tr>`;
+      }
+      html += '</table>';
+      $('quizList').innerHTML = html;
+    }
+
+    function showReg() { $('loginForm').style.display = 'none'; $('regForm').style.display = 'block'; }
+    function showLogin() { $('regForm').style.display = 'none'; $('loginForm').style.display = 'block'; }
+  </script>
+</body>
+</html>
