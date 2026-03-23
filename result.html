@@ -12,6 +12,7 @@
     <div id="navRight"></div>
   </nav>
 
+  <div id="loading" class="box center"><h2>Loading result...</h2></div>
   <div id="resultArea" style="display:none"></div>
   <div id="msg"></div>
 
@@ -20,63 +21,215 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="app.js"></script>
   <script>
-    const attemptId = new URLSearchParams(location.search).get('id');
+    var attemptId = new URLSearchParams(location.search).get('id');
 
-    firebase.auth().onAuthStateChanged(async u => {
-      if (!u) { location = 'index.html'; return; }
-      const uDoc = await db.collection('users').doc(u.uid).get();
-      const isAdmin = uDoc.data().isAdmin;
-      $('navRight').innerHTML = `<span>${uDoc.data().name}</span>
-        <a href="${isAdmin ? 'admin.html' : 'index.html'}">Dashboard</a>
-        <a href="#" onclick="logout()">Logout</a>`;
-
-      const aDoc = await db.collection('attempts').doc(attemptId).get();
-      if (!aDoc.exists) { flash('Not found', false); return; }
-      const attempt = aDoc.data();
-
-      // Only allow own results or admin
-      if (attempt.userId !== u.uid && !isAdmin) { flash('Access denied', false); return; }
-
-      const qDoc = await db.collection('quizzes').doc(attempt.quizId).get();
-      if (!qDoc.exists) { flash('Quiz deleted', false); return; }
-      const quiz = qDoc.data();
-
-      const pct = Math.round(attempt.score / attempt.total * 100);
-      const color = pct >= 70 ? '#27ae60' : pct >= 40 ? '#f39c12' : '#e74c3c';
-
-      let html = `
-        <div class="box">
-          <h2>${quiz.title} — Result</h2>
-          <div class="score" style="color:${color}">${attempt.score} / ${attempt.total}
-            <div style="font-size:.4em;color:#666">${pct}%</div>
-          </div>
-        </div>`;
-
-      quiz.questions.forEach((q, i) => {
-        const ans = attempt.answers[q.id] || '';
-        const correct = ans === q.correct;
-        html += `<div class="q-block ${correct ? 'correct' : 'wrong'}">
-          <strong>Q${i + 1}. ${q.text}</strong>
-          ${['a','b','c','d'].map(o => {
-            let cls = '';
-            if (o === q.correct) cls = 'style="font-weight:bold;color:#27ae60"';
-            if (o === ans && o !== q.correct) cls = 'style="color:#e74c3c;text-decoration:line-through"';
-            return `<div class="opt" ${cls}>${o.toUpperCase()}. ${q[o]}
-              ${o === q.correct ? ' ✅' : ''}${o === ans && o !== q.correct ? ' ❌' : ''}
-              ${o === ans && o === q.correct ? ' (Your answer)' : ''}
-              ${o === ans && o !== q.correct ? ' (Your answer)' : ''}
-            </div>`;
-          }).join('')}
-          ${q.explanation ? `<div class="explain">📖 <strong>Explanation:</strong> ${q.explanation}</div>` : ''}
-        </div>`;
+    if (!attemptId) {
+      document.getElementById('loading').innerHTML = '<h2 style="color:red;">No result ID found</h2>';
+    } else {
+      firebase.auth().onAuthStateChanged(function(u) {
+        if (!u) { location = 'index.html'; return; }
+        loadResult(u);
       });
+    }
 
-      html += `<div class="center" style="margin:20px">
-        <a class="btn blue" href="${isAdmin ? 'admin.html' : 'index.html'}">Back to Dashboard</a></div>`;
+    function loadResult(u) {
+      var userData = null;
+      var isAdmin = false;
 
-      $('resultArea').innerHTML = html;
-      $('resultArea').style.display = 'block';
-    });
+      db.collection('users').doc(u.uid).get()
+        .then(function(uDoc) {
+          userData = uDoc.data();
+          isAdmin = userData.isAdmin;
+          setNav(userData.name, userData.batch || '');
+
+          // Custom nav with dashboard link
+          var nav = document.getElementById('navRight');
+          var batchHtml = '';
+          if (userData.batch) {
+            var bc = userData.batch === 'HSC' ? '#9c27b0' : '#4a90d9';
+            batchHtml = '<span style="background:' + bc + ';color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:bold;margin-right:6px;">' + userData.batch + '</span>';
+          }
+          nav.innerHTML =
+            '<span style="color:white;margin-right:6px;">👤 ' + userData.name + '</span>' +
+            batchHtml +
+            '<a href="' + (isAdmin ? 'admin.html' : 'index.html') + '" style="color:#fff;text-decoration:none;margin-right:10px;">📋 Dashboard</a>' +
+            '<button onclick="logout()" style="background:#e74c3c;color:white;border:none;padding:8px 20px;border-radius:20px;cursor:pointer;">Logout</button>';
+
+          return db.collection('attempts').doc(attemptId).get();
+        })
+        .then(function(aDoc) {
+          if (!aDoc.exists) {
+            document.getElementById('loading').style.display = 'none';
+            flash('Result not found', false);
+            throw new Error('NOT_FOUND');
+          }
+          var attempt = aDoc.data();
+
+          if (attempt.userId !== u.uid && !isAdmin) {
+            document.getElementById('loading').style.display = 'none';
+            flash('Access denied', false);
+            throw new Error('ACCESS_DENIED');
+          }
+
+          return db.collection('quizzes').doc(attempt.quizId).get().then(function(qDoc) {
+            return { attempt: attempt, quizDoc: qDoc };
+          });
+        })
+        .then(function(result) {
+          var attempt = result.attempt;
+          var qDoc = result.quizDoc;
+
+          if (!qDoc.exists) {
+            document.getElementById('loading').style.display = 'none';
+            flash('Quiz has been deleted', false);
+            return;
+          }
+          var quiz = qDoc.data();
+
+          // If admin viewing someone else
+          var studentPromise = Promise.resolve(null);
+          if (isAdmin && attempt.userId !== u.uid) {
+            studentPromise = db.collection('users').doc(attempt.userId).get();
+          }
+
+          return studentPromise.then(function(sDoc) {
+            var studentName = userData.name;
+            var studentBatch = userData.batch || '';
+            if (sDoc && sDoc.exists) {
+              studentName = sDoc.data().name;
+              studentBatch = sDoc.data().batch || '';
+            }
+
+            renderResult(quiz, attempt, studentName, studentBatch, isAdmin, attempt.userId !== u.uid);
+          });
+        })
+        .catch(function(e) {
+          if (e.message === 'NOT_FOUND' || e.message === 'ACCESS_DENIED') return;
+          console.error('Result error:', e);
+          document.getElementById('loading').style.display = 'none';
+          flash('Error loading result', false);
+        });
+    }
+
+    function renderResult(quiz, attempt, studentName, studentBatch, isAdmin, isOtherStudent) {
+      var score = attempt.score;
+      var total = attempt.total;
+      var pct = Math.round((score / total) * 100);
+      var grade = pct >= 70 ? 'good' : pct >= 40 ? 'mid' : 'bad';
+
+      var correctCount = 0, wrongCount = 0, skippedCount = 0;
+      for (var i = 0; i < quiz.questions.length; i++) {
+        var q = quiz.questions[i];
+        var ans = attempt.answers[q.id];
+        if (!ans) skippedCount++;
+        else if (ans === q.correct) correctCount++;
+        else wrongCount++;
+      }
+
+      var timeStr = '';
+      if (attempt.timeTaken) {
+        timeStr = Math.floor(attempt.timeTaken / 60) + 'm ' + (attempt.timeTaken % 60) + 's';
+      }
+
+      var html = '<div class="box">';
+
+      // Admin viewing student
+      if (isAdmin && isOtherStudent) {
+        html += '<div style="background:#f0f2f5;padding:10px 16px;border-radius:8px;margin-bottom:16px;">';
+        html += '<strong>👤 Student:</strong> ' + studentName;
+        if (studentBatch) {
+          html += ' <span class="badge ' + (studentBatch === 'HSC' ? 'purple' : 'blue') + '">' + studentBatch + '</span>';
+        }
+        html += '</div>';
+      }
+
+      html += '<h2 style="margin-bottom:6px;">' + quiz.title + '</h2>';
+
+      // Badges
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">';
+      if (quiz.batch) html += '<span class="badge ' + (quiz.batch === 'HSC' ? 'purple' : 'blue') + '">' + quiz.batch + '</span>';
+      if (quiz.subject) html += '<span class="badge gray">' + quiz.subject + '</span>';
+      html += '<span class="badge gray">' + total + ' Questions</span>';
+      if (timeStr) html += '<span class="badge gray">⏱ ' + timeStr + '</span>';
+      if (attempt.date) html += '<span class="badge gray">📅 ' + new Date(attempt.date).toLocaleDateString() + '</span>';
+      html += '</div>';
+
+      // Score circle
+      html += '<div class="score-circle ' + grade + '">' + pct + '%<small>' + score + ' / ' + total + '</small></div>';
+
+      // Summary
+      html += '<div class="summary-grid">';
+      html += '<div class="summary-item green-bg"><div class="num">' + correctCount + '</div><div class="lbl">✅ Correct</div></div>';
+      html += '<div class="summary-item red-bg"><div class="num">' + wrongCount + '</div><div class="lbl">❌ Wrong</div></div>';
+      html += '<div class="summary-item orange-bg"><div class="num">' + skippedCount + '</div><div class="lbl">⏭ Skipped</div></div>';
+      html += '</div>';
+
+      // Grade message
+      if (pct >= 90) html += '<p class="center" style="color:#27ae60;font-size:18px;font-weight:bold;margin-top:12px;">🏆 Excellent!</p>';
+      else if (pct >= 70) html += '<p class="center" style="color:#27ae60;font-size:18px;font-weight:bold;margin-top:12px;">👏 Great job!</p>';
+      else if (pct >= 40) html += '<p class="center" style="color:#e67e22;font-size:18px;font-weight:bold;margin-top:12px;">📚 Keep practicing!</p>';
+      else html += '<p class="center" style="color:#e74c3c;font-size:18px;font-weight:bold;margin-top:12px;">💪 Don\'t give up!</p>';
+
+      html += '</div>';
+
+      // Filter buttons
+      html += '<div class="box" style="padding:12px 24px;">';
+      html += '<strong>Show:</strong> ';
+      html += '<button class="btn sm blue" onclick="filterQ(\'all\')">All (' + total + ')</button> ';
+      html += '<button class="btn sm green" onclick="filterQ(\'correct\')">Correct (' + correctCount + ')</button> ';
+      html += '<button class="btn sm red" onclick="filterQ(\'wrong\')">Wrong (' + wrongCount + ')</button> ';
+      if (skippedCount > 0) html += '<button class="btn sm orange" onclick="filterQ(\'skipped\')">Skipped (' + skippedCount + ')</button>';
+      html += '</div>';
+
+      // Questions
+      html += '<div id="questionsReview">';
+      for (var i = 0; i < quiz.questions.length; i++) {
+        var q = quiz.questions[i];
+        var ans = attempt.answers[q.id] || '';
+        var isCorrect = ans === q.correct;
+        var isSkipped = !ans;
+        var blockClass = isSkipped ? 'skipped' : isCorrect ? 'correct' : 'wrong';
+        var statusBadge = isSkipped ? '<span class="badge orange">Skipped</span>'
+          : isCorrect ? '<span class="badge green">Correct</span>'
+          : '<span class="badge red">Wrong</span>';
+
+        html += '<div class="q-block ' + blockClass + '" data-status="' + blockClass + '">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
+        html += '<strong>Q' + (i + 1) + '. ' + q.text + '</strong>' + statusBadge + '</div>';
+
+        var opts = ['a', 'b', 'c', 'd'];
+        for (var j = 0; j < opts.length; j++) {
+          var o = opts[j];
+          var optClass = 'opt';
+          var icon = '';
+          var extra = '';
+          if (o === q.correct) { optClass += ' correct-opt'; icon = ' ✅'; }
+          if (o === ans && o !== q.correct) { optClass += ' wrong-opt'; icon = ' ❌'; }
+          if (o === ans) extra = ' <span style="font-size:12px;color:#888;">(Your answer)</span>';
+          html += '<div class="' + optClass + '"><strong>' + o.toUpperCase() + '.</strong> ' + q[o] + icon + extra + '</div>';
+        }
+
+        if (q.explanation) html += '<div class="explain"><strong>Explanation:</strong> ' + q.explanation + '</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Back button
+      html += '<div class="center" style="margin:24px 0;">';
+      html += '<a class="btn blue" href="' + (isAdmin ? 'admin.html' : 'index.html') + '">← Back to Dashboard</a></div>';
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('resultArea').innerHTML = html;
+      document.getElementById('resultArea').style.display = 'block';
+    }
+
+    function filterQ(type) {
+      var blocks = document.querySelectorAll('#questionsReview .q-block');
+      for (var i = 0; i < blocks.length; i++) {
+        var status = blocks[i].getAttribute('data-status');
+        blocks[i].style.display = (type === 'all' || status === type) ? 'block' : 'none';
+      }
+    }
   </script>
 </body>
 </html>
