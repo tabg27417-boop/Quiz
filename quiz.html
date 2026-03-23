@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
   <nav style="background:#4a90d9;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;">
     <span style="font-size:1.3em;font-weight:bold;color:#fff;">📝 Quiz App</span>
     <div id="navRight" style="display:flex;align-items:center;gap:12px;"></div>
@@ -17,9 +16,20 @@
 
   <div id="quizArea" style="display:none">
     <div class="box">
-      <h2 id="qzTitle"></h2>
-      <p id="qzInfo"></p>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h2 id="qzTitle" style="margin-bottom:6px;"></h2>
+          <div id="qzBadges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+          <p id="qzInfo" class="muted"></p>
+        </div>
+        <div style="text-align:right;">
+          <div id="qzTimer" style="font-size:1.4em;font-weight:bold;color:#4a90d9;">⏱ 00:00</div>
+          <div id="qzAnswered" class="muted" style="font-size:13px;margin-top:4px;"></div>
+        </div>
+      </div>
+      <div id="qzGrid" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;"></div>
     </div>
+
     <div id="qzQuestions"></div>
     <div class="pages" id="qzPages"></div>
     <div id="qzSubmit" class="center"></div>
@@ -30,94 +40,154 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-
   <script src="app.js"></script>
-
   <script>
-    // --- Global Variables ---
     var quizId = new URLSearchParams(window.location.search).get('id');
     var quiz = null;
     var page = 1;
     var perPage = 10;
     var answers = {};
+    var timerSeconds = 0;
+    var timerInterval = null;
 
-    // --- Initial Load Logic ---
-    if (typeof firebase === 'undefined') {
-      document.getElementById('loading').innerHTML = '<h2 style="color:red;">Error: Firebase failed to load.</h2>';
+    if (!quizId) {
+      document.getElementById('loading').innerHTML = '<h2 style="color:red;">No quiz ID found</h2>';
     } else {
-      if (!quizId) {
-        document.getElementById('loading').innerHTML = '<h2 style="color:red;">No quiz ID found</h2>';
-      } else {
-        firebase.auth().onAuthStateChanged(function(u) {
-          if (!u) {
-            window.location = 'index.html';
+      firebase.auth().onAuthStateChanged(function(u) {
+        if (!u) { window.location = 'index.html'; return; }
+        loadQuiz(u);
+      });
+    }
+
+    function loadQuiz(u) {
+      db.collection('users').doc(u.uid).get()
+        .then(function(uDoc) {
+          if (uDoc.exists) {
+            var ud = uDoc.data();
+            setNav(ud.name, ud.batch || '');
+          }
+          return db.collection('access').where('userId', '==', u.uid).where('quizId', '==', quizId).get();
+        })
+        .then(function(acc) {
+          if (acc.empty) {
+            document.getElementById('loading').style.display = 'none';
+            flash('No access to this quiz', false);
+            throw new Error('NO_ACCESS');
+          }
+          return db.collection('attempts').where('userId', '==', u.uid).where('quizId', '==', quizId).get();
+        })
+        .then(function(att) {
+          if (!att.empty) {
+            window.location = 'result.html?id=' + att.docs[0].id;
+            throw new Error('ALREADY_DONE');
+          }
+          return db.collection('quizzes').doc(quizId).get();
+        })
+        .then(function(qDoc) {
+          if (!qDoc.exists) {
+            document.getElementById('loading').style.display = 'none';
+            flash('Quiz not found', false);
             return;
           }
-          loadQuiz(u);
+
+          quiz = qDoc.data();
+          document.getElementById('qzTitle').textContent = quiz.title;
+
+          // Badges
+          var badgesHtml = '';
+          if (quiz.batch) {
+            badgesHtml += '<span class="badge ' + (quiz.batch === 'HSC' ? 'purple' : 'blue') + '">' + quiz.batch + '</span>';
+          }
+          if (quiz.subject) {
+            badgesHtml += '<span class="badge gray">' + quiz.subject + '</span>';
+          }
+          document.getElementById('qzBadges').innerHTML = badgesHtml;
+
+          // Load saved answers
+          var saved = localStorage.getItem('ans_' + quizId);
+          if (saved) {
+            try { answers = JSON.parse(saved); } catch(e) { answers = {}; }
+          }
+
+          // Load saved timer
+          var savedTime = localStorage.getItem('timer_' + quizId);
+          if (savedTime) timerSeconds = parseInt(savedTime) || 0;
+
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('quizArea').style.display = 'block';
+          startTimer();
+          renderPage();
+        })
+        .catch(function(e) {
+          if (e.message === 'NO_ACCESS' || e.message === 'ALREADY_DONE') return;
+          console.error('Load quiz error:', e);
+          document.getElementById('loading').style.display = 'none';
+          flash('Error loading quiz', false);
         });
-      }
     }
 
-    async function loadQuiz(u) {
-      try {
-        var uDoc = await db.collection('users').doc(u.uid).get();
-        if (uDoc.exists) setNav(uDoc.data().name);
-
-        var acc = await db.collection('access').where('userId', '==', u.uid).where('quizId', '==', quizId).get();
-        if (acc.empty) {
-          document.getElementById('loading').style.display = 'none';
-          flash('No access to this quiz', false);
-          return;
-        }
-
-        var att = await db.collection('attempts').where('userId', '==', u.uid).where('quizId', '==', quizId).get();
-        if (!att.empty) {
-          window.location = 'result.html?id=' + att.docs[0].id;
-          return;
-        }
-
-        var qDoc = await db.collection('quizzes').doc(quizId).get();
-        if (!qDoc.exists) {
-          document.getElementById('loading').style.display = 'none';
-          flash('Quiz not found', false);
-          return;
-        }
-
-        quiz = qDoc.data();
-        document.getElementById('qzTitle').textContent = quiz.title;
-
-        var saved = localStorage.getItem('ans_' + quizId);
-        if (saved) {
-          try { answers = JSON.parse(saved); } catch(e) { answers = {}; }
-        }
-
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('quizArea').style.display = 'block';
-        renderPage();
-      } catch (e) {
-        console.error('Error loading quiz:', e);
-        document.getElementById('loading').style.display = 'none';
-      }
+    // Timer
+    function startTimer() {
+      updateTimerDisplay();
+      timerInterval = setInterval(function() {
+        timerSeconds++;
+        localStorage.setItem('timer_' + quizId, timerSeconds);
+        updateTimerDisplay();
+      }, 1000);
     }
 
+    function updateTimerDisplay() {
+      var mins = Math.floor(timerSeconds / 60);
+      var secs = timerSeconds % 60;
+      document.getElementById('qzTimer').textContent =
+        '⏱ ' + (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+    }
+
+    function stopTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+    }
+
+    // Render
     function renderPage() {
       var total = quiz.questions.length;
       var totalPages = Math.ceil(total / perPage);
       var start = (page - 1) * perPage;
       var pageQs = quiz.questions.slice(start, start + perPage);
 
-      document.getElementById('qzInfo').textContent = total + ' questions | Page ' + page + ' of ' + totalPages;
+      var answeredCount = 0;
+      for (var k in answers) { if (answers.hasOwnProperty(k)) answeredCount++; }
 
+      document.getElementById('qzInfo').textContent = total + ' questions | Page ' + page + ' of ' + totalPages;
+      document.getElementById('qzAnswered').textContent = answeredCount + ' / ' + total + ' answered';
+
+      // Grid
+      var gridHtml = '';
+      for (var g = 0; g < total; g++) {
+        var gq = quiz.questions[g];
+        var isAns = answers[gq.id] !== undefined;
+        var isCurPage = g >= start && g < start + perPage;
+        var bg = isCurPage ? '#4a90d9' : isAns ? '#43a047' : '#ddd';
+        var clr = isCurPage || isAns ? '#fff' : '#666';
+        var tp = Math.floor(g / perPage) + 1;
+        gridHtml += '<button onclick="goPage(' + tp + ')" style="width:34px;height:34px;border-radius:6px;border:none;cursor:pointer;font-weight:bold;font-size:12px;background:' + bg + ';color:' + clr + ';" title="Q' + (g + 1) + '">' + (g + 1) + '</button>';
+      }
+      document.getElementById('qzGrid').innerHTML = gridHtml;
+
+      // Questions
       var html = '';
       for (var i = 0; i < pageQs.length; i++) {
         var q = pageQs[i];
         var num = start + i + 1;
-        html += '<div class="q-block"><strong>Q' + num + '. ' + q.text + '</strong>';
+        var isA = answers[q.id] !== undefined;
+        html += '<div class="q-block" style="border-left:4px solid ' + (isA ? '#43a047' : '#ddd') + ';">';
+        html += '<strong>Q' + num + '. ' + q.text + '</strong>';
+        if (isA) html += ' <span class="badge green" style="font-size:11px;padding:2px 8px;">Answered</span>';
         var opts = ['a', 'b', 'c', 'd'];
         for (var j = 0; j < opts.length; j++) {
           var o = opts[j];
           var checked = answers[q.id] === o ? 'checked' : '';
-          html += '<div class="radio-opt" onclick="pick(\'' + q.id + '\',\'' + o + '\',this)">' +
+          var sel = answers[q.id] === o ? 'style="background:#e3f2fd;border-radius:8px;"' : '';
+          html += '<div class="radio-opt" ' + sel + ' onclick="pick(\'' + q.id + '\',\'' + o + '\',this)">' +
             '<input type="radio" name="' + q.id + '" value="' + o + '" ' + checked + '>' +
             '<label>' + o.toUpperCase() + '. ' + q[o] + '</label></div>';
         }
@@ -125,6 +195,7 @@
       }
       document.getElementById('qzQuestions').innerHTML = html;
 
+      // Pagination
       var pHtml = '';
       if (page > 1) pHtml += '<a href="#" onclick="goPage(' + (page - 1) + ');return false;">« Prev</a>';
       for (var p = 1; p <= totalPages; p++) {
@@ -134,8 +205,14 @@
       if (page < totalPages) pHtml += '<a href="#" onclick="goPage(' + (page + 1) + ');return false;">Next »</a>';
       document.getElementById('qzPages').innerHTML = pHtml;
 
+      // Submit
       if (page === totalPages) {
-        document.getElementById('qzSubmit').innerHTML = '<button class="btn green" style="font-size:18px;padding:14px 40px;margin:16px" onclick="submitQuiz()">Submit Quiz</button>';
+        var unanswered = total - answeredCount;
+        var warnText = unanswered > 0
+          ? '<p style="color:#e67e22;font-size:14px;margin-bottom:8px;">⚠️ ' + unanswered + ' question' + (unanswered > 1 ? 's' : '') + ' unanswered</p>'
+          : '<p style="color:#43a047;font-size:14px;margin-bottom:8px;">✅ All questions answered!</p>';
+        document.getElementById('qzSubmit').innerHTML = warnText +
+          '<button class="btn green" style="font-size:18px;padding:14px 40px;margin:16px" onclick="submitQuiz()">📩 Submit Quiz</button>';
       } else {
         document.getElementById('qzSubmit').innerHTML = '';
       }
@@ -145,6 +222,7 @@
       answers[qid] = val;
       el.querySelector('input').checked = true;
       localStorage.setItem('ans_' + quizId, JSON.stringify(answers));
+      renderPage();
     }
 
     function goPage(p) {
@@ -153,35 +231,45 @@
       window.scrollTo(0, 0);
     }
 
-    // --- THE FIX: Defined outside to be globally accessible ---
-    async function submitQuiz() {
-      if (!confirm('Submit quiz? You cannot change answers after this.')) return;
-      try {
-        var uid = firebase.auth().currentUser.uid;
-        var score = 0;
-        for (var i = 0; i < quiz.questions.length; i++) {
-          var q = quiz.questions[i];
-          if (answers[q.id] === q.correct) score++;
-        }
-        var attempt = {
-          userId: uid,
-          quizId: quizId,
-          answers: answers,
-          score: score,
-          total: quiz.questions.length,
-          date: new Date().toISOString()
-        };
-        
-        // Ensure db is ready
-        var ref = await db.collection('attempts').add(attempt);
+    // Submit
+    function submitQuiz() {
+      var total = quiz.questions.length;
+      var answeredCount = 0;
+      for (var k in answers) { if (answers.hasOwnProperty(k)) answeredCount++; }
+      var unanswered = total - answeredCount;
+
+      var msg = 'Submit quiz?';
+      if (unanswered > 0) msg = unanswered + ' question' + (unanswered > 1 ? 's are' : ' is') + ' unanswered. Submit anyway?';
+      if (!confirm(msg)) return;
+
+      stopTimer();
+
+      var uid = firebase.auth().currentUser.uid;
+      var score = 0;
+      for (var i = 0; i < quiz.questions.length; i++) {
+        var q = quiz.questions[i];
+        if (answers[q.id] === q.correct) score++;
+      }
+
+      db.collection('attempts').add({
+        userId: uid,
+        quizId: quizId,
+        answers: answers,
+        score: score,
+        total: quiz.questions.length,
+        timeTaken: timerSeconds,
+        date: new Date().toISOString()
+      })
+      .then(function(ref) {
         localStorage.removeItem('ans_' + quizId);
-        
-        // Redirect to result.html
+        localStorage.removeItem('timer_' + quizId);
         window.location.href = 'result.html?id=' + ref.id;
-      } catch (e) {
+      })
+      .catch(function(e) {
         console.error('Submit error:', e);
         alert('Error submitting: ' + e.message);
-      }
+        startTimer();
+      });
     }
   </script>
 </body>
