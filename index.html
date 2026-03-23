@@ -12,29 +12,87 @@
     <div id="navRight"></div>
   </nav>
 
-  <div class="box" id="authBox">
-    <div id="loginForm">
-      <h2>Login</h2>
-      <input id="lEmail" type="email" placeholder="Email">
-      <input id="lPass" type="password" placeholder="Password">
-      <button class="btn blue" onclick="login()">Login</button>
-      <p>No account? <a href="#" onclick="showReg()">Register</a></p>
-    </div>
-    <div id="regForm" style="display:none">
-      <h2>Register</h2>
-      <input id="rName" placeholder="Full Name">
-      <input id="rEmail" type="email" placeholder="Email">
-      <input id="rPass" type="password" placeholder="Password">
-      <button class="btn blue" onclick="register()">Register</button>
-      <p>Have account? <a href="#" onclick="showLogin()">Login</a></p>
-    </div>
-  </div>
+  <div class="container">
+    <!-- AUTH BOX -->
+    <div class="box auth-box" id="authBox">
+      <!-- LOGIN FORM -->
+      <div id="loginForm">
+        <h2>🔐 Login</h2>
+        <div class="form-group">
+          <label>Email</label>
+          <input id="lEmail" type="email" placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input id="lPass" type="password" placeholder="••••••••">
+        </div>
+        <button class="btn blue full" onclick="login()">Login</button>
+        <p class="center muted">No account? <a href="javascript:void(0)" onclick="showReg()">Register here</a></p>
+      </div>
 
-  <div id="dashboard" style="display:none">
-    <h1 id="welcome"></h1>
-    <div class="box">
-      <h2>Your Quizzes</h2>
-      <div id="quizList"></div>
+      <!-- REGISTER FORM -->
+      <div id="regForm" style="display:none">
+        <h2>📝 Register</h2>
+        <div class="form-group">
+          <label>Full Name</label>
+          <input id="rName" placeholder="John Doe">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input id="rEmail" type="email" placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input id="rPass" type="password" placeholder="Min 6 characters">
+        </div>
+        <div class="form-group">
+          <label>Select Batch</label>
+          <div class="batch-select">
+            <label class="batch-option">
+              <input type="radio" name="batch" value="SSC" checked>
+              <span class="batch-card">🏫 SSC</span>
+            </label>
+            <label class="batch-option">
+              <input type="radio" name="batch" value="HSC">
+              <span class="batch-card">🎓 HSC</span>
+            </label>
+          </div>
+        </div>
+        <button class="btn blue full" onclick="register()">Register</button>
+        <p class="center muted">Have account? <a href="javascript:void(0)" onclick="showLogin()">Login here</a></p>
+      </div>
+    </div>
+
+    <!-- STUDENT DASHBOARD -->
+    <div id="dashboard" style="display:none">
+      <div class="dash-header">
+        <h1 id="welcome"></h1>
+        <span class="badge big" id="batchBadge"></span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num" id="statTotal">0</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statDone">0</div>
+          <div class="stat-label">Done</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statPending">0</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statAvg">—</div>
+          <div class="stat-label">Avg %</div>
+        </div>
+      </div>
+
+      <div class="box">
+        <h2>📋 Your Quizzes</h2>
+        <div id="quizList"><div class="loader"></div></div>
+      </div>
     </div>
   </div>
 
@@ -45,56 +103,156 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="app.js"></script>
   <script>
-    firebase.auth().onAuthStateChanged(async u => {
+    // Auth state listener
+    firebase.auth().onAuthStateChanged(function(u) {
       if (u) {
-        const doc = await db.collection('users').doc(u.uid).get();
-        const data = doc.data();
-        if (data.isAdmin) { window.location = 'admin.html'; return; }
-        $('authBox').style.display = 'none';
-        $('dashboard').style.display = 'block';
-        $('welcome').textContent = 'Welcome, ' + data.name + '!';
-        $('navRight').innerHTML = `<span>${data.name}</span><a href="#" onclick="logout()">Logout</a>`;
-        loadStudentQuizzes(u.uid);
+        db.collection('users').doc(u.uid).get()
+          .then(function(doc) {
+            if (!doc.exists) {
+              flash('User data not found. Please wait...', false);
+              // User doc may not be created yet (just registered)
+              // Retry after 2 seconds
+              setTimeout(function() {
+                db.collection('users').doc(u.uid).get().then(function(doc2) {
+                  if (doc2.exists) {
+                    handleUserData(u.uid, doc2.data());
+                  } else {
+                    flash('Profile not found. Try logging out and back in.', false);
+                  }
+                });
+              }, 2000);
+              return;
+            }
+            handleUserData(u.uid, doc.data());
+          })
+          .catch(function(e) {
+            console.error('Auth error:', e);
+            flash('Error loading profile', false);
+          });
       } else {
-        $('authBox').style.display = 'block';
-        $('dashboard').style.display = 'none';
-        $('navRight').innerHTML = '';
+        document.getElementById('authBox').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        clearNav();
       }
     });
 
-    async function loadStudentQuizzes(uid) {
-      const accessSnap = await db.collection('access').where('userId', '==', uid).get();
-      const quizIds = accessSnap.docs.map(d => d.data().quizId);
-      const attemptSnap = await db.collection('attempts').where('userId', '==', uid).get();
-      const attempted = {};
-      attemptSnap.docs.forEach(d => { attempted[d.data().quizId] = d.id; });
-
-      if (quizIds.length === 0) {
-        $('quizList').innerHTML = '<p class="muted">No quizzes assigned yet.</p>';
+    function handleUserData(uid, data) {
+      // Admin redirect
+      if (data.isAdmin) {
+        window.location = 'admin.html';
         return;
       }
 
-      let html = '<table><tr><th>Quiz</th><th>Questions</th><th>Status</th><th>Action</th></tr>';
-      for (const qid of quizIds) {
-        const qDoc = await db.collection('quizzes').doc(qid).get();
-        if (!qDoc.exists) continue;
-        const q = qDoc.data();
-        const done = attempted[qid];
-        html += `<tr>
-          <td>${q.title}</td>
-          <td>${q.questions.length}</td>
-          <td>${done ? '<span class="badge green">Done</span>' : '<span class="badge blue">Pending</span>'}</td>
-          <td>${done
-            ? `<a class="btn sm gray" href="result.html?id=${done}">Result</a>`
-            : `<a class="btn sm blue" href="quiz.html?id=${qid}">Start</a>`}</td>
-        </tr>`;
-      }
-      html += '</table>';
-      $('quizList').innerHTML = html;
+      // Show dashboard
+      document.getElementById('authBox').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('welcome').textContent = 'Welcome, ' + data.name + '!';
+
+      var batch = data.batch || 'SSC';
+      document.getElementById('batchBadge').textContent = batch;
+      document.getElementById('batchBadge').className = 'badge big ' + (batch === 'HSC' ? 'purple' : 'blue');
+
+      setNav(data.name, batch);
+      loadStudentQuizzes(uid, batch);
     }
 
-    function showReg() { $('loginForm').style.display = 'none'; $('regForm').style.display = 'block'; }
-    function showLogin() { $('regForm').style.display = 'none'; $('loginForm').style.display = 'block'; }
+    function loadStudentQuizzes(uid, batch) {
+      db.collection('access').where('userId', '==', uid).get()
+        .then(function(accessSnap) {
+          var accessQuizIds = [];
+          accessSnap.docs.forEach(function(d) {
+            accessQuizIds.push(d.data().quizId);
+          });
+
+          return db.collection('attempts').where('userId', '==', uid).get()
+            .then(function(attemptSnap) {
+              var attempted = {};
+              attemptSnap.docs.forEach(function(d) {
+                var ad = d.data();
+                attempted[ad.quizId] = { id: d.id, score: ad.score, total: ad.total };
+              });
+              return { accessQuizIds: accessQuizIds, attempted: attempted };
+            });
+        })
+        .then(function(result) {
+          var accessQuizIds = result.accessQuizIds;
+          var attempted = result.attempted;
+
+          if (accessQuizIds.length === 0) {
+            document.getElementById('quizList').innerHTML = '<p class="muted center">No quizzes assigned yet.</p>';
+            updateStats(0, 0, 0, []);
+            return;
+          }
+
+          // Load all quiz documents
+          var promises = [];
+          for (var i = 0; i < accessQuizIds.length; i++) {
+            promises.push(db.collection('quizzes').doc(accessQuizIds[i]).get());
+          }
+
+          return Promise.all(promises).then(function(quizDocs) {
+            var html = '<table><tr><th>Subject</th><th>Quiz</th><th>Questions</th><th>Status</th><th>Action</th></tr>';
+            var total = 0, done = 0, scores = [];
+
+            for (var i = 0; i < quizDocs.length; i++) {
+              var qDoc = quizDocs[i];
+              if (!qDoc.exists) continue;
+              var q = qDoc.data();
+              var qid = qDoc.id;
+
+              // Only show quizzes matching student's batch
+              if (q.batch && q.batch !== batch) continue;
+
+              total++;
+              var att = attempted[qid];
+              if (att) {
+                done++;
+                scores.push(Math.round((att.score / att.total) * 100));
+              }
+
+              html += '<tr>' +
+                '<td><span class="badge gray">' + (q.subject || '—') + '</span></td>' +
+                '<td>' + q.title + '</td>' +
+                '<td>' + q.questions.length + '</td>' +
+                '<td>' + (att
+                  ? '<span class="badge green">Done (' + att.score + '/' + att.total + ')</span>'
+                  : '<span class="badge orange">Pending</span>') +
+                '</td>' +
+                '<td>' + (att
+                  ? '<a class="btn sm gray" href="result.html?id=' + att.id + '">Result</a>'
+                  : '<a class="btn sm blue" href="quiz.html?id=' + qid + '">Start</a>') +
+                '</td></tr>';
+            }
+
+            if (total === 0) {
+              document.getElementById('quizList').innerHTML = '<p class="muted center">No quizzes for your batch yet.</p>';
+              updateStats(0, 0, 0, []);
+              return;
+            }
+
+            html += '</table>';
+            document.getElementById('quizList').innerHTML = html;
+            updateStats(total, done, total - done, scores);
+          });
+        })
+        .catch(function(e) {
+          console.error('Load quizzes error:', e);
+          document.getElementById('quizList').innerHTML = '<p class="muted center">Error loading quizzes.</p>';
+        });
+    }
+
+    function updateStats(total, done, pending, scores) {
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statDone').textContent = done;
+      document.getElementById('statPending').textContent = pending;
+      var avg = '—';
+      if (scores.length > 0) {
+        var sum = 0;
+        for (var i = 0; i < scores.length; i++) sum += scores[i];
+        avg = Math.round(sum / scores.length) + '%';
+      }
+      document.getElementById('statAvg').textContent = avg;
+    }
   </script>
 </body>
 </html>
