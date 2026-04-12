@@ -3,109 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - Quiz App</title>
+  <title>Admin Panel</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-  <nav style="background:#4a90d9;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;">
-    <span style="font-size:1.3em;font-weight:bold;color:#fff;">📝 Admin Panel</span>
-    <div id="navRight" style="display:flex;align-items:center;gap:12px;"></div>
+  <nav>
+    <span class="brand"><i class="fa-solid fa-shield-halved"></i> Admin Panel</span>
+    <div id="navRight"></div>
   </nav>
 
-  <div id="loading" class="box center"><h2>Loading...</h2></div>
+  <div id="loading" class="box center">
+    <div class="loader"></div>
+    <p style="margin-top:12px;color:var(--text3);">Loading admin panel...</p>
+  </div>
 
   <div id="adminArea" style="display:none">
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('quizzesTab',this)">Quizzes</button>
-      <button class="tab" onclick="switchTab('addTab',this)">Add Quiz</button>
-      <button class="tab" onclick="switchTab('accessTab',this)">Access</button>
-      <button class="tab" onclick="switchTab('resultsTab',this)">Results</button>
+      <button class="tab active" onclick="switchTab('quizzesTab',this)"><i class="fa-solid fa-list"></i> Quizzes</button>
+      <button class="tab" onclick="switchTab('addTab',this)"><i class="fa-solid fa-plus"></i> Add Quiz</button>
+      <button class="tab" onclick="switchTab('accessTab',this)"><i class="fa-solid fa-key"></i> Access</button>
+      <button class="tab" onclick="switchTab('resultsTab',this)"><i class="fa-solid fa-chart-bar"></i> Results</button>
+      <button class="tab" onclick="switchTab('newsfeedTab',this)"><i class="fa-solid fa-fire-flame-curved"></i> Newsfeed</button>
     </div>
 
     <!-- QUIZZES TAB -->
     <div id="quizzesTab" class="tabContent box">
-      <h2>All Quizzes</h2>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-        <label>Batch:</label>
-        <select id="filterBatch" onchange="renderQuizList()">
-          <option value="all">All</option>
-          <option value="SSC">SSC</option>
-          <option value="HSC">HSC</option>
-        </select>
-        <label>Subject:</label>
-        <select id="filterSubject" onchange="renderQuizList()">
-          <option value="all">All</option>
-        </select>
+      <h2><i class="fa-solid fa-list" style="color:var(--primary);"></i> All Quizzes</h2>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label style="margin-top:0;"><i class="fa-solid fa-layer-group"></i> Batch</label>
+          <select id="filterBatch" onchange="renderQuizList()" style="width:auto;min-width:120px;">
+            <option value="all">All</option>
+            <option value="SSC">SSC</option>
+            <option value="HSC">HSC</option>
+          </select>
+        </div>
+        <div>
+          <label style="margin-top:0;"><i class="fa-solid fa-book-open"></i> Subject</label>
+          <select id="filterSubject" onchange="renderQuizList()" style="width:auto;min-width:140px;">
+            <option value="all">All</option>
+          </select>
+        </div>
       </div>
       <div id="adminQuizList"></div>
     </div>
 
     <!-- ADD QUIZ TAB -->
     <div id="addTab" class="tabContent box" style="display:none">
-      <h2>Create Quiz</h2>
+      <h2><i class="fa-solid fa-plus-circle" style="color:var(--primary);"></i> Create Quiz</h2>
 
-      <!-- STEP 1: Setup -->
       <div id="quizSetup">
         <div class="form-group">
-          <label>Select Batch</label>
+          <label><i class="fa-solid fa-layer-group"></i> Select Batch</label>
           <div class="batch-select">
             <label class="batch-option">
               <input type="radio" name="qBatch" value="SSC" checked>
-              <span class="batch-card">🏫 SSC</span>
+              <span class="batch-card"><i class="fa-solid fa-school"></i> SSC</span>
             </label>
             <label class="batch-option">
               <input type="radio" name="qBatch" value="HSC">
-              <span class="batch-card">🎓 HSC</span>
+              <span class="batch-card"><i class="fa-solid fa-graduation-cap"></i> HSC</span>
             </label>
           </div>
         </div>
         <div class="form-group">
-          <label>Subject Name</label>
+          <label><i class="fa-solid fa-book-open"></i> Subject Name</label>
           <input id="qSubject" placeholder="e.g. Physics, Math, English">
         </div>
         <div class="form-group">
-          <label>Quiz Title</label>
+          <label><i class="fa-solid fa-file-alt"></i> Quiz Title</label>
           <input id="qTitle" placeholder="e.g. Chapter 1 Test">
         </div>
         <div class="form-group">
-          <label>Number of Questions</label>
-          <input id="qCount" type="number" min="1" max="100" placeholder="e.g. 10">
+          <label><i class="fa-solid fa-hashtag"></i> Number of Questions</label>
+          <input id="qCount" type="number" min="1" max="100" placeholder="e.g. 10" style="max-width:200px;">
         </div>
-        <button class="btn blue" onclick="startAddingQuestions()">Next → Add Questions</button>
+        <button class="btn blue" onclick="startAddingQuestions()"><i class="fa-solid fa-arrow-right"></i> Next: Add Questions</button>
       </div>
 
-      <!-- STEP 2: Add questions one by one -->
+      <!-- STEP 2: Questions -->
       <div id="quizQuestions" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-          <div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <span class="badge blue" id="setupBatchBadge"></span>
             <span class="badge gray" id="setupSubjectBadge"></span>
-            <strong id="setupTitleBadge" style="margin-left:8px;"></strong>
+            <strong id="setupTitleBadge"></strong>
           </div>
-          <button class="btn sm gray" onclick="backToSetup()">← Back to Setup</button>
+          <button class="btn sm gray" onclick="backToSetup()"><i class="fa-solid fa-arrow-left"></i> Back</button>
         </div>
 
         <!-- Progress -->
-        <div style="background:#eee;border-radius:8px;height:12px;margin-bottom:16px;overflow:hidden;">
-          <div id="qProgressBar" style="background:#4a90d9;height:100%;border-radius:8px;transition:width 0.3s;width:0%"></div>
+        <div class="progress-bar-wrap" style="margin-bottom:10px;">
+          <div class="progress-bar-fill" id="qProgressBar" style="width:0%"></div>
         </div>
-        <p id="qProgressText" style="text-align:center;font-weight:600;margin-bottom:16px;"></p>
+        <p id="qProgressText" style="text-align:center;font-weight:600;margin-bottom:16px;color:var(--text2);font-size:13.5px;"></p>
 
-        <!-- Current question -->
+        <!-- Current question form -->
         <div id="currentQuestionForm" class="q-block">
-          <h3 id="currentQLabel">Question 1</h3>
+          <h3 id="currentQLabel" style="margin-bottom:14px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-circle-question" style="color:var(--primary);"></i> Question 1</h3>
           <div class="form-group">
             <label>Question Text</label>
             <textarea id="cqText" placeholder="Enter question text" rows="3"></textarea>
           </div>
           <div class="grid2">
-            <div class="form-group"><label>Option A</label><input id="cqA" placeholder="Option A"></div>
-            <div class="form-group"><label>Option B</label><input id="cqB" placeholder="Option B"></div>
-            <div class="form-group"><label>Option C</label><input id="cqC" placeholder="Option C"></div>
-            <div class="form-group"><label>Option D</label><input id="cqD" placeholder="Option D"></div>
+            <div class="form-group"><label><span style="background:var(--border);padding:1px 7px;border-radius:4px;font-size:12px;">A</span> Option A</label><input id="cqA" placeholder="Option A"></div>
+            <div class="form-group"><label><span style="background:var(--border);padding:1px 7px;border-radius:4px;font-size:12px;">B</span> Option B</label><input id="cqB" placeholder="Option B"></div>
+            <div class="form-group"><label><span style="background:var(--border);padding:1px 7px;border-radius:4px;font-size:12px;">C</span> Option C</label><input id="cqC" placeholder="Option C"></div>
+            <div class="form-group"><label><span style="background:var(--border);padding:1px 7px;border-radius:4px;font-size:12px;">D</span> Option D</label><input id="cqD" placeholder="Option D"></div>
           </div>
-          <div class="form-group">
-            <label>Correct Answer</label>
+          <div class="form-group" style="max-width:200px;">
+            <label><i class="fa-solid fa-check-circle" style="color:var(--success);"></i> Correct Answer</label>
             <select id="cqCorrect">
               <option value="a">A</option>
               <option value="b">B</option>
@@ -114,58 +122,90 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Explanation (optional)</label>
-            <textarea id="cqExp" placeholder="Explanation shown after submit" rows="2"></textarea>
+            <label><i class="fa-solid fa-lightbulb" style="color:var(--warning);"></i> Explanation <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
+            <textarea id="cqExp" placeholder="Explanation shown after submit — also appears in the public newsfeed" rows="2"></textarea>
           </div>
         </div>
 
         <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
-          <button class="btn gray" id="prevQBtn" onclick="prevQuestion()" style="display:none">← Previous</button>
-          <button class="btn blue" id="nextQBtn" onclick="nextQuestion()">Next Question →</button>
-          <button class="btn green" id="saveQuizBtn" onclick="handleSaveQuiz()" style="display:none">💾 Save Quiz</button>
+          <button class="btn gray" id="prevQBtn" onclick="prevQuestion()" style="display:none"><i class="fa-solid fa-arrow-left"></i> Previous</button>
+          <button class="btn blue" id="nextQBtn" onclick="nextQuestion()">Next Question <i class="fa-solid fa-arrow-right"></i></button>
+          <button class="btn green" id="saveQuizBtn" onclick="handleSaveQuiz()" style="display:none"><i class="fa-solid fa-floppy-disk"></i> Save Quiz</button>
         </div>
 
-        <!-- Question overview -->
         <div id="savedQuestionsPreview" style="margin-top:24px;"></div>
       </div>
     </div>
 
     <!-- ACCESS TAB -->
     <div id="accessTab" class="tabContent box" style="display:none">
-      <h2>Manage Access</h2>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-        <label>Filter by Batch:</label>
-        <select id="accessBatchFilter" onchange="renderAccessTab()">
-          <option value="all">All</option>
-          <option value="SSC">SSC</option>
-          <option value="HSC">HSC</option>
-        </select>
+      <h2><i class="fa-solid fa-key" style="color:var(--primary);"></i> Manage Access</h2>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label style="margin-top:0;"><i class="fa-solid fa-filter"></i> Filter by Batch</label>
+          <select id="accessBatchFilter" onchange="renderAccessTab()" style="width:auto;min-width:120px;">
+            <option value="all">All</option>
+            <option value="SSC">SSC</option>
+            <option value="HSC">HSC</option>
+          </select>
+        </div>
       </div>
       <div id="studentAccessList"></div>
-      <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
-      <h3>Grant Single Quiz Access</h3>
+      <hr>
+      <h3 style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-user-plus" style="color:var(--success);"></i> Grant Single Quiz Access</h3>
       <div class="flex" style="margin-top:10px;">
-        <div><label>Student</label><select id="selStudent"></select></div>
-        <div><label>Quiz</label><select id="selQuiz"></select></div>
-        <div style="padding-top:24px">
-          <button class="btn green" onclick="grantAccess()">Grant</button>
-          <button class="btn red" onclick="revokeAccess()">Revoke</button>
+        <div><label>Student</label><select id="selStudent" style="min-width:200px;"></select></div>
+        <div><label>Quiz</label><select id="selQuiz" style="min-width:200px;"></select></div>
+        <div style="padding-top:22px;">
+          <button class="btn green" onclick="grantAccess()"><i class="fa-solid fa-check"></i> Grant</button>
+          <button class="btn red" onclick="revokeAccess()"><i class="fa-solid fa-xmark"></i> Revoke</button>
         </div>
       </div>
     </div>
 
     <!-- RESULTS TAB -->
     <div id="resultsTab" class="tabContent box" style="display:none">
-      <h2>All Results</h2>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-        <label>Batch:</label>
-        <select id="resultBatchFilter" onchange="loadResults()">
-          <option value="all">All</option>
-          <option value="SSC">SSC</option>
-          <option value="HSC">HSC</option>
-        </select>
+      <h2><i class="fa-solid fa-chart-bar" style="color:var(--primary);"></i> All Results</h2>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label style="margin-top:0;"><i class="fa-solid fa-layer-group"></i> Batch</label>
+          <select id="resultBatchFilter" onchange="loadResults()" style="width:auto;min-width:120px;">
+            <option value="all">All</option>
+            <option value="SSC">SSC</option>
+            <option value="HSC">HSC</option>
+          </select>
+        </div>
       </div>
       <div id="allResults"></div>
+    </div>
+
+    <!-- NEWSFEED TAB -->
+    <div id="newsfeedTab" class="tabContent" style="display:none">
+      <div class="box" style="margin-bottom:0;">
+        <h2 style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-fire-flame-curved" style="color:#fb923c;"></i> Newsfeed Preview
+          <span style="font-size:13px;font-weight:400;color:var(--text3);">— commonly missed MCQs from all attempts</span>
+        </h2>
+        <p style="color:var(--text2);font-size:13.5px;margin-bottom:16px;">
+          <i class="fa-solid fa-info-circle" style="color:var(--info);"></i>
+          This newsfeed is publicly visible on the student dashboard. It shows MCQs that students most commonly get wrong, sorted by error count. Adding <strong>explanations</strong> to questions makes them more educational in the feed.
+        </p>
+        <button class="btn blue" onclick="loadNewsfeed('adminNewsfeedPreview'); document.getElementById('adminNewsfeedPreview').style.display='block';">
+          <i class="fa-solid fa-rotate"></i> Refresh Newsfeed Preview
+        </button>
+      </div>
+      <div id="adminNewsfeedPreview" class="newsfeed-section" style="margin-top:0;border-top:none;border-radius:0 0 10px 10px;display:none;"></div>
+      <div class="box" style="margin-top:16px;">
+        <h3 style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-circle-info" style="color:var(--info);"></i> How the Newsfeed Works</h3>
+        <ul style="color:var(--text2);font-size:13.5px;line-height:2;padding-left:20px;">
+          <li>Scans all student attempt submissions from Firestore</li>
+          <li>Finds MCQs where students answered incorrectly</li>
+          <li>Ranks them by how many students got each one wrong</li>
+          <li>Shows question text, explanation, subject badge, and error count</li>
+          <li>Auto-scrolls as a ticker — hovering pauses it</li>
+          <li>Visible to all logged-in students on their dashboard</li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -176,14 +216,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="app.js"></script>
   <script>
-    var allStudents = [];
-    var allQuizzes = [];
-    var allAccess = [];
-
-    // Quiz creation state
+    var allStudents = [], allQuizzes = [], allAccess = [];
     var quizSetupData = { batch: '', subject: '', title: '', totalQ: 0 };
-    var quizQuestions = [];
-    var currentQIndex = 0;
+    var quizQuestions = [], currentQIndex = 0;
 
     firebase.auth().onAuthStateChanged(function(u) {
       if (!u) { window.location = 'index.html'; return; }
@@ -195,9 +230,7 @@
           document.getElementById('adminArea').style.display = 'block';
           loadAll();
         })
-        .catch(function(e) {
-          flash('Error: ' + e.message, false);
-        });
+        .catch(function(e) { flash('Error: ' + e.message, false); });
     });
 
     function switchTab(id, btn) {
@@ -210,48 +243,37 @@
       if (id === 'resultsTab') loadResults();
     }
 
-    // ============ STEP 1: SETUP ============
+    // ============ QUIZ SETUP ============
     function startAddingQuestions() {
       var batch = document.querySelector('input[name="qBatch"]:checked').value;
       var subject = document.getElementById('qSubject').value.trim();
       var title = document.getElementById('qTitle').value.trim();
       var count = parseInt(document.getElementById('qCount').value);
-
       if (!subject) { flash('Enter subject name', false); return; }
       if (!title) { flash('Enter quiz title', false); return; }
       if (!count || count < 1) { flash('Enter valid number of questions', false); return; }
       if (count > 100) { flash('Maximum 100 questions', false); return; }
-
       quizSetupData = { batch: batch, subject: subject, title: title, totalQ: count };
-      quizQuestions = [];
-      currentQIndex = 0;
-
-      for (var i = 0; i < count; i++) {
-        quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
-      }
-
-      document.getElementById('setupBatchBadge').textContent = batch;
+      quizQuestions = []; currentQIndex = 0;
+      for (var i = 0; i < count; i++) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
+      document.getElementById('setupBatchBadge').innerHTML = '<i class="fa-solid ' + (batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + batch;
       document.getElementById('setupBatchBadge').className = 'badge ' + (batch === 'HSC' ? 'purple' : 'blue');
-      document.getElementById('setupSubjectBadge').textContent = subject;
+      document.getElementById('setupSubjectBadge').innerHTML = '<i class="fa-solid fa-book-open"></i> ' + subject;
       document.getElementById('setupTitleBadge').textContent = title;
-
       document.getElementById('quizSetup').style.display = 'none';
       document.getElementById('quizQuestions').style.display = 'block';
       loadQuestionForm();
     }
 
     function backToSetup() {
-      if (!confirm('Go back? Your entered questions will be preserved.')) return;
+      if (!confirm('Go back? Entered questions will be preserved.')) return;
       document.getElementById('quizSetup').style.display = 'block';
       document.getElementById('quizQuestions').style.display = 'none';
     }
 
-    // ============ STEP 2: ONE BY ONE ============
     function loadQuestionForm() {
-      var q = quizQuestions[currentQIndex];
-      var total = quizSetupData.totalQ;
-
-      document.getElementById('currentQLabel').textContent = 'Question ' + (currentQIndex + 1) + ' of ' + total;
+      var q = quizQuestions[currentQIndex], total = quizSetupData.totalQ;
+      document.getElementById('currentQLabel').innerHTML = '<i class="fa-solid fa-circle-question" style="color:var(--primary);"></i> Question ' + (currentQIndex + 1) + ' of ' + total;
       document.getElementById('cqText').value = q.text;
       document.getElementById('cqA').value = q.a;
       document.getElementById('cqB').value = q.b;
@@ -259,21 +281,14 @@
       document.getElementById('cqD').value = q.d;
       document.getElementById('cqCorrect').value = q.correct;
       document.getElementById('cqExp').value = q.explanation;
-
-      // Progress
       var filled = 0;
-      for (var i = 0; i < quizQuestions.length; i++) {
-        if (quizQuestions[i].text.trim() !== '') filled++;
-      }
+      for (var i = 0; i < quizQuestions.length; i++) { if (quizQuestions[i].text.trim()) filled++; }
       var pct = Math.round((filled / total) * 100);
       document.getElementById('qProgressBar').style.width = pct + '%';
       document.getElementById('qProgressText').textContent = filled + ' / ' + total + ' questions filled (' + pct + '%)';
-
-      // Buttons
-      document.getElementById('prevQBtn').style.display = currentQIndex > 0 ? 'inline-block' : 'none';
-      document.getElementById('nextQBtn').style.display = currentQIndex < total - 1 ? 'inline-block' : 'none';
-      document.getElementById('saveQuizBtn').style.display = currentQIndex === total - 1 ? 'inline-block' : 'none';
-
+      document.getElementById('prevQBtn').style.display = currentQIndex > 0 ? 'inline-flex' : 'none';
+      document.getElementById('nextQBtn').style.display = currentQIndex < total - 1 ? 'inline-flex' : 'none';
+      document.getElementById('saveQuizBtn').style.display = currentQIndex === total - 1 ? 'inline-flex' : 'none';
       renderSavedPreview();
     }
 
@@ -296,119 +311,67 @@
       return true;
     }
 
-    function nextQuestion() {
-      saveCurrentQuestion();
-      if (!validateCurrentQuestion()) return;
-      currentQIndex++;
-      loadQuestionForm();
-      window.scrollTo({ top: document.getElementById('currentQuestionForm').offsetTop - 100, behavior: 'smooth' });
-    }
-
-    function prevQuestion() {
-      saveCurrentQuestion();
-      currentQIndex--;
-      loadQuestionForm();
-    }
-
-    function jumpToQuestion(i) {
-      saveCurrentQuestion();
-      currentQIndex = i;
-      loadQuestionForm();
-      window.scrollTo({ top: document.getElementById('currentQuestionForm').offsetTop - 100, behavior: 'smooth' });
-    }
+    function nextQuestion() { saveCurrentQuestion(); if (!validateCurrentQuestion()) return; currentQIndex++; loadQuestionForm(); window.scrollTo({ top: document.getElementById('currentQuestionForm').offsetTop - 100, behavior: 'smooth' }); }
+    function prevQuestion() { saveCurrentQuestion(); currentQIndex--; loadQuestionForm(); }
+    function jumpToQuestion(i) { saveCurrentQuestion(); currentQIndex = i; loadQuestionForm(); window.scrollTo({ top: document.getElementById('currentQuestionForm').offsetTop - 100, behavior: 'smooth' }); }
 
     function renderSavedPreview() {
-      var html = '<h3 style="margin-top:10px;">📋 Question Overview</h3>';
-      html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">';
+      var html = '<div class="section-title">Question Overview</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">';
       for (var i = 0; i < quizQuestions.length; i++) {
-        var q = quizQuestions[i];
-        var filled = q.text.trim() !== '';
-        var isCurrent = i === currentQIndex;
-        var bg = isCurrent ? '#4a90d9' : filled ? '#43a047' : '#ccc';
-        var color = isCurrent || filled ? '#fff' : '#666';
-        html += '<button onclick="jumpToQuestion(' + i + ')" style="width:40px;height:40px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;background:' + bg + ';color:' + color + ';">' + (i + 1) + '</button>';
+        var q = quizQuestions[i], filled = q.text.trim() !== '', isCurrent = i === currentQIndex;
+        var bg = isCurrent ? 'var(--primary)' : filled ? 'var(--success)' : 'var(--border)';
+        var clr = isCurrent || filled ? '#fff' : 'var(--text3)';
+        html += '<button onclick="jumpToQuestion(' + i + ')" style="width:38px;height:38px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:12px;background:' + bg + ';color:' + clr + ';font-family:inherit;">' + (i + 1) + '</button>';
       }
       html += '</div>';
-
-      // Summary
       var hasAny = false;
-      for (var i = 0; i < quizQuestions.length; i++) {
-        if (quizQuestions[i].text.trim()) { hasAny = true; break; }
-      }
+      for (var i = 0; i < quizQuestions.length; i++) { if (quizQuestions[i].text.trim()) { hasAny = true; break; } }
       if (hasAny) {
-        html += '<div style="margin-top:16px;">';
         for (var i = 0; i < quizQuestions.length; i++) {
           var q = quizQuestions[i];
           if (!q.text.trim()) continue;
-          html += '<div style="background:#f8f9fa;border:1px solid #eee;border-radius:8px;padding:12px;margin:8px 0;cursor:pointer;" onclick="jumpToQuestion(' + i + ')">';
-          html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-          html += '<span><strong>Q' + (i + 1) + ':</strong> ' + q.text.substring(0, 80) + (q.text.length > 80 ? '...' : '') + '</span>';
-          html += '<span class="badge green" style="margin-left:8px;">✓ ' + q.correct.toUpperCase() + '</span>';
-          html += '</div></div>';
+          html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin:6px 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;" onclick="jumpToQuestion(' + i + ')">';
+          html += '<span><strong style="color:var(--primary);">Q' + (i+1) + ':</strong> ' + q.text.substring(0, 80) + (q.text.length > 80 ? '…' : '') + '</span>';
+          html += '<span class="badge green"><i class="fa-solid fa-check"></i> ' + q.correct.toUpperCase() + '</span>';
+          html += '</div>';
         }
-        html += '</div>';
       }
-
       document.getElementById('savedQuestionsPreview').innerHTML = html;
     }
 
-    // ============ SAVE QUIZ ============
     function handleSaveQuiz() {
       saveCurrentQuestion();
       if (!validateCurrentQuestion()) return;
-
-      // Validate ALL
       for (var i = 0; i < quizQuestions.length; i++) {
         var q = quizQuestions[i];
-        if (!q.text || !q.a || !q.b || !q.c || !q.d) {
-          flash('Question ' + (i + 1) + ' is incomplete. Click on it to fill.', false);
-          return;
-        }
+        if (!q.text || !q.a || !q.b || !q.c || !q.d) { flash('Question ' + (i + 1) + ' is incomplete', false); return; }
       }
-
       var btn = document.getElementById('saveQuizBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
-
-      var questions = [];
+      btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+      var qs = [];
       for (var i = 0; i < quizQuestions.length; i++) {
-        var q = quizQuestions[i];
-        questions.push({
-          id: 'q' + (i + 1),
-          text: q.text,
-          a: q.a,
-          b: q.b,
-          c: q.c,
-          d: q.d,
-          correct: q.correct,
-          explanation: q.explanation
-        });
+        var q = Object.assign({}, quizQuestions[i]);
+        q.id = 'q' + (i + 1) + '_' + Date.now();
+        qs.push(q);
       }
-
       db.collection('quizzes').add({
-        title: quizSetupData.title,
-        subject: quizSetupData.subject,
-        batch: quizSetupData.batch,
-        questions: questions,
-        created: firebase.firestore.FieldValue.serverTimestamp()
+        batch: quizSetupData.batch, subject: quizSetupData.subject, title: quizSetupData.title,
+        questions: qs, createdAt: firebase.firestore.FieldValue.serverTimestamp()
       })
       .then(function() {
-        flash('Quiz "' + quizSetupData.title + '" created with ' + questions.length + ' questions!');
-        document.getElementById('qTitle').value = '';
+        flash('Quiz saved successfully!');
+        btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Quiz';
         document.getElementById('qSubject').value = '';
+        document.getElementById('qTitle').value = '';
         document.getElementById('qCount').value = '';
-        quizQuestions = [];
-        currentQIndex = 0;
         document.getElementById('quizSetup').style.display = 'block';
         document.getElementById('quizQuestions').style.display = 'none';
         loadAll();
       })
       .catch(function(e) {
-        flash('Error saving: ' + e.message, false);
-      })
-      .finally(function() {
-        btn.disabled = false;
-        btn.textContent = '💾 Save Quiz';
+        flash('Error: ' + e.message, false);
+        btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Quiz';
       });
     }
 
@@ -419,21 +382,11 @@
         db.collection('users').where('isAdmin', '==', false).get(),
         db.collection('access').get()
       ]).then(function(results) {
-        allQuizzes = [];
-        results[0].forEach(function(d) { allQuizzes.push({ id: d.id, data: d.data() }); });
-
-        allStudents = [];
-        results[1].forEach(function(d) { allStudents.push({ id: d.id, data: d.data() }); });
-
-        allAccess = [];
-        results[2].forEach(function(d) { allAccess.push({ id: d.id, data: d.data() }); });
-
-        updateSubjectFilter();
-        renderQuizList();
-        renderAccessTab();
-      }).catch(function(e) {
-        flash('Error loading data: ' + e.message, false);
-      });
+        allQuizzes = []; results[0].forEach(function(d) { allQuizzes.push({ id: d.id, data: d.data() }); });
+        allStudents = []; results[1].forEach(function(d) { allStudents.push({ id: d.id, data: d.data() }); });
+        allAccess = []; results[2].forEach(function(d) { allAccess.push({ id: d.id, data: d.data() }); });
+        updateSubjectFilter(); renderQuizList(); renderAccessTab();
+      }).catch(function(e) { flash('Error loading data: ' + e.message, false); });
     }
 
     function updateSubjectFilter() {
@@ -443,41 +396,30 @@
         if (subjects.indexOf(s) === -1) subjects.push(s);
       }
       var html = '<option value="all">All</option>';
-      for (var i = 0; i < subjects.length; i++) {
-        html += '<option value="' + subjects[i] + '">' + subjects[i] + '</option>';
-      }
+      for (var i = 0; i < subjects.length; i++) html += '<option value="' + subjects[i] + '">' + subjects[i] + '</option>';
       document.getElementById('filterSubject').innerHTML = html;
     }
 
-    // ============ QUIZ LIST ============
     function renderQuizList() {
       var batchF = document.getElementById('filterBatch').value;
       var subjectF = document.getElementById('filterSubject').value;
-
       var filtered = [];
       for (var i = 0; i < allQuizzes.length; i++) {
         var q = allQuizzes[i];
-        var batchOk = batchF === 'all' || (q.data.batch || '') === batchF;
-        var subjectOk = subjectF === 'all' || (q.data.subject || '') === subjectF;
-        if (batchOk && subjectOk) filtered.push(q);
+        if ((batchF === 'all' || (q.data.batch || '') === batchF) && (subjectF === 'all' || (q.data.subject || '') === subjectF)) filtered.push(q);
       }
-
-      if (filtered.length === 0) {
-        document.getElementById('adminQuizList').innerHTML = '<p class="muted">No quizzes found</p>';
-        return;
-      }
-
-      var html = '<table><tr><th>Batch</th><th>Subject</th><th>Title</th><th>Questions</th><th>Action</th></tr>';
+      if (filtered.length === 0) { document.getElementById('adminQuizList').innerHTML = '<p class="muted center"><i class="fa-solid fa-inbox"></i> No quizzes found</p>'; return; }
+      var html = '<table><tr><th>Batch</th><th>Subject</th><th>Title</th><th>Questions</th><th>Actions</th></tr>';
       for (var i = 0; i < filtered.length; i++) {
         var q = filtered[i];
-        var bc = (q.data.batch === 'HSC') ? 'purple' : 'blue';
+        var bc = q.data.batch === 'HSC' ? 'purple' : 'blue';
         html += '<tr>' +
-          '<td><span class="badge ' + bc + '">' + (q.data.batch || '—') + '</span></td>' +
-          '<td><span class="badge gray">' + (q.data.subject || '—') + '</span></td>' +
-          '<td>' + q.data.title + '</td>' +
-          '<td>' + q.data.questions.length + '</td>' +
-          '<td><button class="btn sm blue" onclick="viewQuiz(\'' + q.id + '\')">View</button> ' +
-          '<button class="btn sm red" onclick="delQuiz(\'' + q.id + '\')">Delete</button></td></tr>';
+          '<td><span class="badge ' + bc + '"><i class="fa-solid ' + (q.data.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + (q.data.batch || '—') + '</span></td>' +
+          '<td><span class="badge gray"><i class="fa-solid fa-tag"></i> ' + (q.data.subject || '—') + '</span></td>' +
+          '<td style="font-weight:500;">' + q.data.title + '</td>' +
+          '<td><span style="background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;">' + q.data.questions.length + '</span></td>' +
+          '<td><button class="btn sm blue" onclick="viewQuiz(\'' + q.id + '\')"><i class="fa-solid fa-eye"></i> View</button> ' +
+          '<button class="btn sm red" onclick="delQuiz(\'' + q.id + '\')"><i class="fa-solid fa-trash"></i> Delete</button></td></tr>';
       }
       html += '</table>';
       document.getElementById('adminQuizList').innerHTML = html;
@@ -485,38 +427,34 @@
 
     function viewQuiz(id) {
       var quiz = null;
-      for (var i = 0; i < allQuizzes.length; i++) {
-        if (allQuizzes[i].id === id) { quiz = allQuizzes[i]; break; }
-      }
+      for (var i = 0; i < allQuizzes.length; i++) { if (allQuizzes[i].id === id) { quiz = allQuizzes[i]; break; } }
       if (!quiz) return;
       var q = quiz.data;
-
-      var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;overflow:auto;padding:20px;" onclick="if(event.target===this)this.remove()">';
-      html += '<div style="max-width:700px;margin:40px auto;background:#fff;border-radius:12px;padding:24px;">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      html += '<h2>' + q.title + '</h2>';
-      html += '<button class="btn sm gray" onclick="this.closest(\'div[style*=fixed]\').remove()">✕ Close</button>';
+      var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:1000;overflow:auto;padding:20px;" onclick="if(event.target===this)this.remove()">';
+      html += '<div style="max-width:700px;margin:40px auto;background:#fff;border-radius:14px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+      html += '<h2 style="margin:0;">' + q.title + '</h2>';
+      html += '<button class="btn sm gray" onclick="this.closest(\'div[style*=fixed]\').remove()"><i class="fa-solid fa-xmark"></i> Close</button>';
       html += '</div>';
-      html += '<p><span class="badge ' + (q.batch === 'HSC' ? 'purple' : 'blue') + '">' + (q.batch || '—') + '</span> ';
-      html += '<span class="badge gray">' + (q.subject || '—') + '</span> ';
-      html += '<span class="muted">' + q.questions.length + ' questions</span></p><hr>';
-
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">';
+      html += '<span class="badge ' + (q.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (q.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + (q.batch || '—') + '</span>';
+      html += '<span class="badge gray"><i class="fa-solid fa-book-open"></i> ' + (q.subject || '—') + '</span>';
+      html += '<span class="badge gray"><i class="fa-solid fa-circle-question"></i> ' + q.questions.length + ' questions</span>';
+      html += '</div><hr>';
       for (var i = 0; i < q.questions.length; i++) {
         var qs = q.questions[i];
-        html += '<div style="margin:16px 0;padding:12px;background:#f8f9fa;border-radius:8px;">';
-        html += '<strong>Q' + (i + 1) + ':</strong> ' + qs.text + '<br>';
-        html += '<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
-        var opts = ['a', 'b', 'c', 'd'];
-        for (var j = 0; j < opts.length; j++) {
-          var opt = opts[j];
+        html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin:10px 0;">';
+        html += '<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;"><span style="background:var(--primary);color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;flex-shrink:0;">Q' + (i+1) + '</span><strong>' + qs.text + '</strong></div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+        ['a','b','c','d'].forEach(function(opt) {
           var isC = qs.correct === opt;
-          html += '<div style="padding:6px 10px;border-radius:6px;background:' + (isC ? '#e8f5e9' : '#fff') + ';border:1px solid ' + (isC ? '#43a047' : '#ddd') + ';">';
-          html += '<strong>' + opt.toUpperCase() + ':</strong> ' + qs[opt];
-          if (isC) html += ' ✅';
+          html += '<div style="padding:7px 10px;border-radius:8px;background:' + (isC ? '#dcfce7' : '#fff') + ';border:1px solid ' + (isC ? '#86efac' : 'var(--border)') + ';font-size:13px;">';
+          html += '<span style="background:var(--border);padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;margin-right:5px;">' + opt.toUpperCase() + '</span>' + qs[opt];
+          if (isC) html += ' <i class="fa-solid fa-check-circle" style="color:var(--success);float:right;"></i>';
           html += '</div>';
-        }
+        });
         html += '</div>';
-        if (qs.explanation) html += '<div style="margin-top:8px;color:#666;font-size:13px;">💡 ' + qs.explanation + '</div>';
+        if (qs.explanation) html += '<div style="margin-top:10px;padding:8px 12px;background:#fffbeb;border-radius:8px;border-left:3px solid var(--warning);font-size:13px;color:var(--text2);"><i class="fa-solid fa-lightbulb" style="color:var(--warning);"></i> ' + qs.explanation + '</div>';
         html += '</div>';
       }
       html += '</div></div>';
@@ -525,96 +463,47 @@
 
     function delQuiz(id) {
       if (!confirm('Delete this quiz and all related data?')) return;
-
-      var p1 = db.collection('quizzes').doc(id).delete();
-      var p2 = db.collection('access').where('quizId', '==', id).get().then(function(snap) {
-        var dels = [];
-        snap.docs.forEach(function(d) { dels.push(d.ref.delete()); });
-        return Promise.all(dels);
-      });
-      var p3 = db.collection('attempts').where('quizId', '==', id).get().then(function(snap) {
-        var dels = [];
-        snap.docs.forEach(function(d) { dels.push(d.ref.delete()); });
-        return Promise.all(dels);
-      });
-
-      Promise.all([p1, p2, p3]).then(function() {
-        flash('Deleted');
-        loadAll();
-      }).catch(function(e) {
-        flash('Error: ' + e.message, false);
-      });
+      Promise.all([
+        db.collection('quizzes').doc(id).delete(),
+        db.collection('access').where('quizId', '==', id).get().then(function(snap) { return Promise.all(snap.docs.map(function(d) { return d.ref.delete(); })); }),
+        db.collection('attempts').where('quizId', '==', id).get().then(function(snap) { return Promise.all(snap.docs.map(function(d) { return d.ref.delete(); })); })
+      ]).then(function() { flash('Deleted'); loadAll(); })
+        .catch(function(e) { flash('Error: ' + e.message, false); });
     }
 
     // ============ ACCESS TAB ============
     function renderAccessTab() {
       var batchFilter = document.getElementById('accessBatchFilter').value;
-
-      var students = [];
-      for (var i = 0; i < allStudents.length; i++) {
-        var s = allStudents[i];
-        if (batchFilter === 'all' || (s.data.batch || 'SSC') === batchFilter) {
-          students.push(s);
-        }
-      }
-
+      var students = allStudents.filter(function(s) { return batchFilter === 'all' || (s.data.batch || 'SSC') === batchFilter; });
       var html = '';
-      if (students.length === 0) {
-        html = '<p class="muted">No students found</p>';
-      } else {
+      if (students.length === 0) { html = '<p class="muted center">No students found</p>'; }
+      else {
         for (var i = 0; i < students.length; i++) {
-          var s = students[i];
-          var sBatch = s.data.batch || 'SSC';
-          var studentAccess = [];
-          for (var j = 0; j < allAccess.length; j++) {
-            if (allAccess[j].data.userId === s.id) studentAccess.push(allAccess[j]);
-          }
-          var accessQuizIds = [];
-          for (var j = 0; j < studentAccess.length; j++) {
-            accessQuizIds.push(studentAccess[j].data.quizId);
-          }
-
-          var batchQuizzes = [];
-          for (var j = 0; j < allQuizzes.length; j++) {
-            if ((allQuizzes[j].data.batch || '') === sBatch) batchQuizzes.push(allQuizzes[j]);
-          }
-
-          var hasAll = batchQuizzes.length > 0;
-          for (var j = 0; j < batchQuizzes.length; j++) {
-            if (accessQuizIds.indexOf(batchQuizzes[j].id) === -1) { hasAll = false; break; }
-          }
+          var s = students[i], sBatch = s.data.batch || 'SSC';
+          var studentAccess = allAccess.filter(function(a) { return a.data.userId === s.id; });
+          var accessQuizIds = studentAccess.map(function(a) { return a.data.quizId; });
+          var batchQuizzes = allQuizzes.filter(function(q) { return (q.data.batch || '') === sBatch; });
+          var hasAll = batchQuizzes.length > 0 && batchQuizzes.every(function(q) { return accessQuizIds.indexOf(q.id) !== -1; });
           var hasNone = studentAccess.length === 0;
           var batchClass = sBatch === 'HSC' ? 'purple' : 'blue';
-
-          html += '<div style="border:1px solid #eee;border-radius:8px;padding:16px;margin:10px 0;background:#fafafa;">';
+          html += '<div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin:8px 0;background:var(--surface2);">';
           html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">';
-          html += '<div><strong style="font-size:16px;">👤 ' + s.data.name + '</strong>';
-          html += ' <span class="badge ' + batchClass + '" style="font-size:11px;">' + sBatch + '</span>';
-          html += '<div style="color:#666;font-size:13px;">' + s.data.email + '</div></div>';
-          html += '<div style="display:flex;gap:8px;align-items:center;">';
-
-          if (hasAll) {
-            html += '<span class="badge green" style="padding:6px 12px;">All Access ✅</span>';
-          } else if (hasNone) {
-            html += '<span class="badge red" style="padding:6px 12px;">No Access</span>';
-          } else {
-            html += '<span class="badge blue" style="padding:6px 12px;">' + accessQuizIds.length + '/' + batchQuizzes.length + '</span>';
-          }
-
-          html += '<button class="btn sm green" onclick="grantAll(\'' + s.id + '\',\'' + sBatch + '\')">Grant All</button>';
-          html += '<button class="btn sm red" onclick="revokeAll(\'' + s.id + '\')">Revoke All</button>';
+          html += '<div style="display:flex;align-items:center;gap:10px;">';
+          html += '<div style="width:40px;height:40px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--primary);">' + s.data.name.charAt(0).toUpperCase() + '</div>';
+          html += '<div><strong style="font-size:15px;">' + s.data.name + '</strong> <span class="badge ' + batchClass + '" style="font-size:11px;"><i class="fa-solid ' + (sBatch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + sBatch + '</span>';
+          html += '<div style="color:var(--text3);font-size:12.5px;">' + s.data.email + '</div></div></div>';
+          html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
+          if (hasAll) html += '<span class="badge green"><i class="fa-solid fa-circle-check"></i> All Access</span>';
+          else if (hasNone) html += '<span class="badge red"><i class="fa-solid fa-ban"></i> No Access</span>';
+          else html += '<span class="badge blue"><i class="fa-solid fa-key"></i> ' + accessQuizIds.length + '/' + batchQuizzes.length + '</span>';
+          html += '<button class="btn sm green" onclick="grantAll(\'' + s.id + '\',\'' + sBatch + '\')"><i class="fa-solid fa-check"></i> Grant All</button>';
+          html += '<button class="btn sm red" onclick="revokeAll(\'' + s.id + '\')"><i class="fa-solid fa-xmark"></i> Revoke All</button>';
           html += '</div></div>';
-
           if (accessQuizIds.length > 0 && !hasAll) {
-            html += '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">';
+            html += '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px;">';
             for (var j = 0; j < batchQuizzes.length; j++) {
-              var q = batchQuizzes[j];
-              var has = accessQuizIds.indexOf(q.id) !== -1;
-              if (has) {
-                html += '<span class="badge green" style="padding:4px 10px;">' + (q.data.subject ? q.data.subject + ' - ' : '') + q.data.title + ' ✓</span>';
-              } else {
-                html += '<span class="badge gray" style="padding:4px 10px;background:#ccc;color:#666;">' + (q.data.subject ? q.data.subject + ' - ' : '') + q.data.title + '</span>';
-              }
+              var q = batchQuizzes[j], has = accessQuizIds.indexOf(q.id) !== -1;
+              html += '<span class="badge ' + (has ? 'green' : 'gray') + '">' + (has ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>') + ' ' + (q.data.subject ? q.data.subject + ' - ' : '') + q.data.title + '</span>';
             }
             html += '</div>';
           }
@@ -622,171 +511,90 @@
         }
       }
       document.getElementById('studentAccessList').innerHTML = html;
-
-      // Dropdowns
-      var sOpts = '';
-      for (var i = 0; i < allStudents.length; i++) {
-        var s = allStudents[i];
-        sOpts += '<option value="' + s.id + '">' + s.data.name + ' (' + (s.data.batch || 'SSC') + ') - ' + s.data.email + '</option>';
-      }
+      var sOpts = allStudents.map(function(s) { return '<option value="' + s.id + '">' + s.data.name + ' (' + (s.data.batch || 'SSC') + ')</option>'; }).join('');
       document.getElementById('selStudent').innerHTML = sOpts || '<option>No students</option>';
-
-      var qOpts = '';
-      for (var i = 0; i < allQuizzes.length; i++) {
-        var q = allQuizzes[i];
-        qOpts += '<option value="' + q.id + '">[' + (q.data.batch || '?') + '] ' + (q.data.subject ? q.data.subject + ' - ' : '') + q.data.title + '</option>';
-      }
+      var qOpts = allQuizzes.map(function(q) { return '<option value="' + q.id + '">[' + (q.data.batch || '?') + '] ' + (q.data.subject ? q.data.subject + ' - ' : '') + q.data.title + '</option>'; }).join('');
       document.getElementById('selQuiz').innerHTML = qOpts || '<option>No quizzes</option>';
     }
 
-    // ============ GRANT / REVOKE ============
     function grantAll(userId, batch) {
       if (!confirm('Grant access to ALL ' + batch + ' quizzes?')) return;
-      var batchQuizzes = [];
-      for (var i = 0; i < allQuizzes.length; i++) {
-        if ((allQuizzes[i].data.batch || '') === batch) batchQuizzes.push(allQuizzes[i]);
-      }
-      var existing = [];
-      for (var i = 0; i < allAccess.length; i++) {
-        if (allAccess[i].data.userId === userId) existing.push(allAccess[i].data.quizId);
-      }
-
-      var promises = [];
-      var count = 0;
+      var batchQuizzes = allQuizzes.filter(function(q) { return (q.data.batch || '') === batch; });
+      var existing = allAccess.filter(function(a) { return a.data.userId === userId; }).map(function(a) { return a.data.quizId; });
+      var promises = [], count = 0;
       for (var i = 0; i < batchQuizzes.length; i++) {
-        if (existing.indexOf(batchQuizzes[i].id) === -1) {
-          promises.push(db.collection('access').add({ userId: userId, quizId: batchQuizzes[i].id }));
-          count++;
-        }
+        if (existing.indexOf(batchQuizzes[i].id) === -1) { promises.push(db.collection('access').add({ userId: userId, quizId: batchQuizzes[i].id })); count++; }
       }
-
-      Promise.all(promises).then(function() {
-        flash('Granted ' + count + ' new quiz access!');
-        loadAll();
-      });
+      Promise.all(promises).then(function() { flash('Granted ' + count + ' new quiz access!'); loadAll(); });
     }
 
     function revokeAll(userId) {
       if (!confirm('Revoke ALL access?')) return;
-      var toRemove = [];
-      for (var i = 0; i < allAccess.length; i++) {
-        if (allAccess[i].data.userId === userId) toRemove.push(allAccess[i]);
-      }
-      var promises = [];
-      for (var i = 0; i < toRemove.length; i++) {
-        promises.push(db.collection('access').doc(toRemove[i].id).delete());
-      }
-      Promise.all(promises).then(function() {
-        flash('Revoked ' + toRemove.length + ' access entries');
-        loadAll();
-      });
+      var toRemove = allAccess.filter(function(a) { return a.data.userId === userId; });
+      Promise.all(toRemove.map(function(a) { return db.collection('access').doc(a.id).delete(); }))
+        .then(function() { flash('Revoked ' + toRemove.length + ' access entries'); loadAll(); });
     }
 
     function grantAccess() {
-      var userId = document.getElementById('selStudent').value;
-      var quizId = document.getElementById('selQuiz').value;
+      var userId = document.getElementById('selStudent').value, quizId = document.getElementById('selQuiz').value;
       if (!userId || !quizId) { flash('Select student and quiz', false); return; }
-
       db.collection('access').where('userId', '==', userId).where('quizId', '==', quizId).get()
         .then(function(snap) {
           if (!snap.empty) { flash('Already granted', false); return; }
           return db.collection('access').add({ userId: userId, quizId: quizId });
         })
-        .then(function() {
-          flash('Access granted!');
-          loadAll();
-        });
+        .then(function() { flash('Access granted!'); loadAll(); });
     }
 
     function revokeAccess() {
-      var userId = document.getElementById('selStudent').value;
-      var quizId = document.getElementById('selQuiz').value;
+      var userId = document.getElementById('selStudent').value, quizId = document.getElementById('selQuiz').value;
       db.collection('access').where('userId', '==', userId).where('quizId', '==', quizId).get()
         .then(function(snap) {
           if (snap.empty) { flash('No access found', false); return; }
-          var promises = [];
-          snap.docs.forEach(function(d) { promises.push(d.ref.delete()); });
-          return Promise.all(promises);
+          return Promise.all(snap.docs.map(function(d) { return d.ref.delete(); }));
         })
-        .then(function() {
-          flash('Access revoked');
-          loadAll();
-        });
+        .then(function() { flash('Access revoked'); loadAll(); });
     }
 
     // ============ RESULTS ============
     function loadResults() {
       document.getElementById('allResults').innerHTML = '<div class="loader"></div>';
       var batchFilter = document.getElementById('resultBatchFilter').value;
-
       db.collection('attempts').get().then(function(snap) {
-        if (snap.empty) {
-          document.getElementById('allResults').innerHTML = '<p class="muted">No results yet</p>';
-          return;
-        }
-
+        if (snap.empty) { document.getElementById('allResults').innerHTML = '<p class="muted center">No results yet</p>'; return; }
         var promises = [];
         snap.docs.forEach(function(d) {
           var a = d.data();
-          promises.push(
-            Promise.all([
-              db.collection('users').doc(a.userId).get(),
-              db.collection('quizzes').doc(a.quizId).get()
-            ]).then(function(results) {
-              return { attemptId: d.id, attempt: a, userDoc: results[0], quizDoc: results[1] };
-            })
-          );
+          promises.push(Promise.all([db.collection('users').doc(a.userId).get(), db.collection('quizzes').doc(a.quizId).get()])
+            .then(function(results) { return { attemptId: d.id, attempt: a, userDoc: results[0], quizDoc: results[1] }; }));
         });
-
         return Promise.all(promises).then(function(rows) {
           var filtered = [];
           for (var i = 0; i < rows.length; i++) {
             var r = rows[i];
             if (!r.userDoc.exists || !r.quizDoc.exists) continue;
-            var uData = r.userDoc.data();
-            var studentBatch = uData.batch || 'SSC';
+            var uData = r.userDoc.data(), studentBatch = uData.batch || 'SSC';
             if (batchFilter !== 'all' && studentBatch !== batchFilter) continue;
-
             var pct = Math.round(r.attempt.score / r.attempt.total * 100);
-            filtered.push({
-              name: uData.name,
-              batch: studentBatch,
-              batchClass: studentBatch === 'HSC' ? 'purple' : 'blue',
-              subject: r.quizDoc.data().subject || '—',
-              quiz: r.quizDoc.data().title,
-              score: r.attempt.score,
-              total: r.attempt.total,
-              pct: pct,
-              color: pct >= 70 ? 'green' : pct >= 40 ? 'blue' : 'red',
-              date: r.attempt.date ? new Date(r.attempt.date).toLocaleDateString() : '',
-              id: r.attemptId
-            });
+            filtered.push({ name: uData.name, batch: studentBatch, subject: r.quizDoc.data().subject || '—', quiz: r.quizDoc.data().title, score: r.attempt.score, total: r.attempt.total, pct: pct, color: pct >= 70 ? 'green' : pct >= 40 ? 'blue' : 'red', date: r.attempt.date ? new Date(r.attempt.date).toLocaleDateString() : '', id: r.attemptId });
           }
-
-          if (filtered.length === 0) {
-            document.getElementById('allResults').innerHTML = '<p class="muted">No results found</p>';
-            return;
-          }
-
+          if (filtered.length === 0) { document.getElementById('allResults').innerHTML = '<p class="muted center">No results found</p>'; return; }
           var html = '<table><tr><th>Student</th><th>Batch</th><th>Subject</th><th>Quiz</th><th>Score</th><th>Date</th><th></th></tr>';
           for (var i = 0; i < filtered.length; i++) {
             var r = filtered[i];
-            html += '<tr>' +
-              '<td>' + r.name + '</td>' +
-              '<td><span class="badge ' + r.batchClass + '">' + r.batch + '</span></td>' +
-              '<td><span class="badge gray">' + r.subject + '</span></td>' +
+            html += '<tr><td style="font-weight:500;">' + r.name + '</td>' +
+              '<td><span class="badge ' + (r.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (r.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + r.batch + '</span></td>' +
+              '<td><span class="badge gray"><i class="fa-solid fa-tag"></i> ' + r.subject + '</span></td>' +
               '<td>' + r.quiz + '</td>' +
               '<td><span class="badge ' + r.color + '">' + r.score + '/' + r.total + ' (' + r.pct + '%)</span></td>' +
-              '<td>' + r.date + '</td>' +
-              '<td><a class="btn sm gray" href="result.html?id=' + r.id + '">View</a></td></tr>';
+              '<td style="color:var(--text3);font-size:12.5px;">' + r.date + '</td>' +
+              '<td><a class="btn sm gray" href="result.html?id=' + r.id + '"><i class="fa-solid fa-eye"></i> View</a></td></tr>';
           }
           html += '</table>';
           document.getElementById('allResults').innerHTML = html;
         });
-      }).catch(function(e) {
-        document.getElementById('allResults').innerHTML = '<p class="muted">Error loading results</p>';
-      });
+      }).catch(function(e) { document.getElementById('allResults').innerHTML = '<p class="muted center"><i class="fa-solid fa-triangle-exclamation"></i> Error loading results</p>'; });
     }
   </script>
 </body>
-  </html>
+              </html>
