@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Take Quiz</title>
+  <title>Take Quiz – QuizVai</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
   <nav>
-    <span class="brand"><i class="fa-solid fa-pen-to-square"></i> QuizApp</span>
+    <span class="brand">
+      <img src="logo.jpg" alt="QuizVai" style="height:34px;border-radius:6px;object-fit:contain;">
+    </span>
     <div id="navRight"></div>
   </nav>
 
@@ -28,9 +30,9 @@
         </div>
         <div style="text-align:right;flex-shrink:0;">
           <div id="qzTimer" style="font-size:1.5em;font-weight:700;color:var(--primary);font-family:'Sora',sans-serif;display:flex;align-items:center;gap:6px;justify-content:flex-end;">
-            <i class="fa-regular fa-clock"></i> <span id="qzTimerText">00:00</span>
+            <i class="fa-regular fa-clock" id="timerIcon"></i> <span id="qzTimerText">00:00</span>
           </div>
-          <div id="qzTimerLabel" style="font-size:11px;color:var(--text3);margin-top:2px;"></div>
+          <div id="qzTimerLabel" style="color:var(--text3);font-size:11px;margin-top:2px;text-align:right;"></div>
           <div id="qzAnswered" style="color:var(--text3);font-size:12.5px;margin-top:4px;"></div>
         </div>
       </div>
@@ -51,6 +53,16 @@
     <div id="qzSubmit" class="center" style="margin-bottom:24px;"></div>
   </div>
 
+  <!-- TIME UP OVERLAY -->
+  <div id="timeUpOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:16px;padding:40px;text-align:center;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="font-size:56px;margin-bottom:12px;">⏰</div>
+      <h2 style="color:var(--danger);margin-bottom:8px;">Time's Up!</h2>
+      <p style="color:var(--text2);margin-bottom:20px;">Your quiz is being submitted automatically...</p>
+      <div class="loader" style="margin:0 auto;"></div>
+    </div>
+  </div>
+
   <div id="msg"></div>
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -59,10 +71,11 @@
   <script src="app.js"></script>
   <script>
     var quizId = new URLSearchParams(window.location.search).get('id');
-    var quiz = null, page = 1, perPage = 10, answers = {};
-    var timerSeconds = 0, timerInterval = null;
-    var hasTimeLimit = false, timeLimitSeconds = 0, remainingSeconds = 0;
-    var autoSubmitted = false;
+    var quiz = null, page = 1, perPage = 10, answers = {}, timerInterval = null;
+    // Elapsed time (for result display)
+    var elapsedSeconds = 0;
+    // Countdown timer (for timed quizzes)
+    var countdownSeconds = 0, isCountdown = false, countdownInterval = null;
 
     if (!quizId) {
       document.getElementById('loading').innerHTML = '<p style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> No quiz ID found</p>';
@@ -100,19 +113,31 @@
           var badgesHtml = '';
           if (quiz.batch) badgesHtml += '<span class="badge ' + (quiz.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (quiz.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + quiz.batch + '</span>';
           if (quiz.subject) badgesHtml += '<span class="badge gray"><i class="fa-solid fa-book-open"></i> ' + quiz.subject + '</span>';
-
-          // Show time limit badge
-          if (quiz.timeLimit && quiz.timeLimit > 0) {
-            hasTimeLimit = true;
-            timeLimitSeconds = quiz.timeLimit * 60;
-            badgesHtml += '<span class="badge orange"><i class="fa-solid fa-stopwatch"></i> ' + quiz.timeLimit + ' min time limit</span>';
-          }
+          if (quiz.timeLimit) badgesHtml += '<span class="badge orange"><i class="fa-regular fa-clock"></i> ' + quiz.timeLimit + ' min limit</span>';
           document.getElementById('qzBadges').innerHTML = badgesHtml;
 
+          // Restore saved answers
           var saved = localStorage.getItem('ans_' + quizId);
           if (saved) { try { answers = JSON.parse(saved); } catch(e) { answers = {}; } }
-          var savedTime = localStorage.getItem('timer_' + quizId);
-          if (savedTime) timerSeconds = parseInt(savedTime) || 0;
+
+          // Set up timer
+          if (quiz.timeLimit && quiz.timeLimit > 0) {
+            isCountdown = true;
+            // Check for saved countdown
+            var savedCountdown = localStorage.getItem('countdown_' + quizId);
+            if (savedCountdown) {
+              countdownSeconds = parseInt(savedCountdown);
+              if (countdownSeconds <= 0) countdownSeconds = 1; // edge case
+            } else {
+              countdownSeconds = quiz.timeLimit * 60;
+            }
+            document.getElementById('qzTimerLabel').textContent = 'Time remaining';
+          } else {
+            isCountdown = false;
+            var savedTime = localStorage.getItem('timer_' + quizId);
+            if (savedTime) elapsedSeconds = parseInt(savedTime) || 0;
+            document.getElementById('qzTimerLabel').textContent = 'Elapsed';
+          }
 
           document.getElementById('loading').style.display = 'none';
           document.getElementById('quizArea').style.display = 'block';
@@ -125,51 +150,92 @@
     }
 
     function startTimer() {
-      updateTimerDisplay();
-      timerInterval = setInterval(function() {
-        timerSeconds++;
-        localStorage.setItem('timer_' + quizId, timerSeconds);
-        updateTimerDisplay();
-
-        // Auto-submit when time runs out
-        if (hasTimeLimit) {
-          remainingSeconds = timeLimitSeconds - timerSeconds;
-          if (remainingSeconds <= 0 && !autoSubmitted) {
-            autoSubmitted = true;
-            stopTimer();
-            flash('Time is up! Auto-submitting your quiz...', false);
-            setTimeout(function() { forceSubmitQuiz(); }, 1000);
+      if (isCountdown) {
+        updateCountdownDisplay();
+        countdownInterval = setInterval(function() {
+          countdownSeconds--;
+          localStorage.setItem('countdown_' + quizId, countdownSeconds);
+          updateCountdownDisplay();
+          if (countdownSeconds <= 0) {
+            clearInterval(countdownInterval);
+            timeUp();
           }
-        }
-      }, 1000);
-    }
-
-    function updateTimerDisplay() {
-      if (hasTimeLimit) {
-        remainingSeconds = timeLimitSeconds - timerSeconds;
-        if (remainingSeconds < 0) remainingSeconds = 0;
-        var mins = Math.floor(remainingSeconds / 60), secs = remainingSeconds % 60;
-        document.getElementById('qzTimerText').textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
-        document.getElementById('qzTimerLabel').textContent = 'Time remaining';
-
-        // Change color when low on time
-        var timerEl = document.getElementById('qzTimer');
-        if (remainingSeconds <= 60) {
-          timerEl.style.color = 'var(--danger)';
-          timerEl.style.animation = 'pulse 1s infinite';
-        } else if (remainingSeconds <= 300) {
-          timerEl.style.color = 'var(--warning)';
-        } else {
-          timerEl.style.color = 'var(--primary)';
-        }
+        }, 1000);
       } else {
-        // Count-up timer (no limit)
-        var mins = Math.floor(timerSeconds / 60), secs = timerSeconds % 60;
-        document.getElementById('qzTimerText').textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
-        document.getElementById('qzTimerLabel').textContent = 'Elapsed time';
+        updateElapsedDisplay();
+        timerInterval = setInterval(function() {
+          elapsedSeconds++;
+          localStorage.setItem('timer_' + quizId, elapsedSeconds);
+          updateElapsedDisplay();
+        }, 1000);
       }
     }
-    function stopTimer() { if (timerInterval) clearInterval(timerInterval); }
+
+    function updateCountdownDisplay() {
+      var s = Math.max(0, countdownSeconds);
+      var mins = Math.floor(s / 60), secs = s % 60;
+      var timeStr = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+      document.getElementById('qzTimerText').textContent = timeStr;
+      var timerEl = document.getElementById('qzTimer');
+      var icon = document.getElementById('timerIcon');
+      if (s <= 60) {
+        timerEl.style.color = 'var(--danger)';
+        icon.className = 'fa-solid fa-stopwatch';
+        // Pulse effect for last 60s
+        timerEl.style.animation = 'timerPulse 1s ease-in-out infinite';
+      } else if (s <= 300) {
+        timerEl.style.color = 'var(--warning)';
+        icon.className = 'fa-regular fa-clock';
+        timerEl.style.animation = '';
+      } else {
+        timerEl.style.color = 'var(--primary)';
+        icon.className = 'fa-regular fa-clock';
+        timerEl.style.animation = '';
+      }
+    }
+
+    function updateElapsedDisplay() {
+      var mins = Math.floor(elapsedSeconds / 60), secs = elapsedSeconds % 60;
+      document.getElementById('qzTimerText').textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+    }
+
+    function stopTimer() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      if (timerInterval) clearInterval(timerInterval);
+    }
+
+    function timeUp() {
+      // Show overlay and auto-submit
+      document.getElementById('timeUpOverlay').style.display = 'flex';
+      setTimeout(function() {
+        autoSubmitQuiz();
+      }, 1800);
+    }
+
+    function autoSubmitQuiz() {
+      var uid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+      if (!uid) { window.location = 'index.html'; return; }
+      var score = 0;
+      for (var i = 0; i < quiz.questions.length; i++) {
+        if (answers[quiz.questions[i].id] === quiz.questions[i].correct) score++;
+      }
+      var timeTaken = quiz.timeLimit ? quiz.timeLimit * 60 - Math.max(0, countdownSeconds) : elapsedSeconds;
+      db.collection('attempts').add({
+        userId: uid, quizId: quizId, answers: answers, score: score,
+        total: quiz.questions.length, timeTaken: timeTaken, date: new Date().toISOString(),
+        autoSubmitted: true
+      })
+      .then(function(ref) {
+        localStorage.removeItem('ans_' + quizId);
+        localStorage.removeItem('countdown_' + quizId);
+        localStorage.removeItem('timer_' + quizId);
+        window.location.href = 'result.html?id=' + ref.id;
+      })
+      .catch(function(e) {
+        document.getElementById('timeUpOverlay').style.display = 'none';
+        flash('Error submitting: ' + e.message, false);
+      });
+    }
 
     function renderPage() {
       var total = quiz.questions.length;
@@ -250,27 +316,6 @@
     }
     function goPage(p) { page = p; renderPage(); window.scrollTo(0, 0); }
 
-    // Force submit (auto-submit on time up)
-    function forceSubmitQuiz() {
-      stopTimer();
-      var uid = firebase.auth().currentUser.uid;
-      var score = 0;
-      for (var i = 0; i < quiz.questions.length; i++) {
-        if (answers[quiz.questions[i].id] === quiz.questions[i].correct) score++;
-      }
-      db.collection('attempts').add({
-        userId: uid, quizId: quizId, answers: answers, score: score,
-        total: quiz.questions.length, timeTaken: timerSeconds,
-        autoSubmitted: true, date: new Date().toISOString()
-      })
-      .then(function(ref) {
-        localStorage.removeItem('ans_' + quizId);
-        localStorage.removeItem('timer_' + quizId);
-        window.location.href = 'result.html?id=' + ref.id;
-      })
-      .catch(function(e) { alert('Error submitting: ' + e.message); });
-    }
-
     function submitQuiz() {
       var total = quiz.questions.length;
       var answeredCount = Object.keys(answers).length;
@@ -285,17 +330,28 @@
       for (var i = 0; i < quiz.questions.length; i++) {
         if (answers[quiz.questions[i].id] === quiz.questions[i].correct) score++;
       }
+      var timeTaken = isCountdown
+        ? (quiz.timeLimit * 60 - Math.max(0, countdownSeconds))
+        : elapsedSeconds;
       db.collection('attempts').add({
         userId: uid, quizId: quizId, answers: answers, score: score,
-        total: quiz.questions.length, timeTaken: timerSeconds, date: new Date().toISOString()
+        total: quiz.questions.length, timeTaken: timeTaken, date: new Date().toISOString()
       })
       .then(function(ref) {
         localStorage.removeItem('ans_' + quizId);
+        localStorage.removeItem('countdown_' + quizId);
         localStorage.removeItem('timer_' + quizId);
         window.location.href = 'result.html?id=' + ref.id;
       })
       .catch(function(e) { alert('Error submitting: ' + e.message); startTimer(); });
     }
   </script>
+
+  <style>
+    @keyframes timerPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.05); }
+    }
+  </style>
 </body>
 </html>
