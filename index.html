@@ -3,136 +3,213 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quiz App</title>
+  <title>QuizVai – Learn, Play, Compete</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-  <!-- ONLY FIX (NEWSFEED VERTICAL LAYOUT) -->
-  <style>
-    .newsfeed-section{
-      display:flex;
-      flex-direction:column; /* 👈 main fix */
-      gap:12px;
-    }
-
-    /* optional: make inner content look clean (no logic change) */
-    .newsfeed-section > div{
-      width:100%;
-    }
-  </style>
 </head>
-
 <body>
   <nav>
-    <span class="brand"><i class="fa-solid fa-pen-to-square"></i> QuizApp</span>
+    <span class="brand">
+      <img src="logo.jpg" alt="QuizVai" style="height:34px;border-radius:6px;object-fit:contain;">
+    </span>
     <div id="navRight"></div>
   </nav>
 
-  <div class="container">
+  <!-- ══════════ LANDING PAGE ══════════ -->
+  <div id="landingPage">
+
+    <!-- HERO -->
+    <div class="hero-section">
+      <div class="hero-bg-shapes">
+        <div class="shape s1"></div>
+        <div class="shape s2"></div>
+        <div class="shape s3"></div>
+      </div>
+      <div class="hero-content">
+        <img src="logo.jpg" alt="QuizVai Logo" class="hero-logo">
+        <div class="hero-tagline">
+          <span class="pill"><i class="fa-solid fa-bolt"></i> Smart Quiz Platform</span>
+        </div>
+        <h1 class="hero-title">Learn Smarter,<br><span class="gradient-text">Score Higher</span></h1>
+        <p class="hero-sub">Bangladesh's most engaging quiz platform for SSC &amp; HSC students. Practice with real MCQs, track your progress, and compete with your batch.</p>
+        <div class="hero-btns">
+          <button class="btn hero-btn-primary" onclick="scrollToAuth()">
+            <i class="fa-solid fa-rocket"></i> Get Started Free
+          </button>
+          <button class="btn hero-btn-ghost" onclick="scrollToFeatures()">
+            <i class="fa-solid fa-circle-play"></i> See How It Works
+          </button>
+        </div>
+        <div class="hero-stats">
+          <div class="hstat"><span class="hstat-num">SSC</span><span class="hstat-lbl">Batch</span></div>
+          <div class="hstat-div"></div>
+          <div class="hstat"><span class="hstat-num">HSC</span><span class="hstat-lbl">Batch</span></div>
+          <div class="hstat-div"></div>
+          <div class="hstat"><span class="hstat-num"><i class="fa-solid fa-infinity"></i></span><span class="hstat-lbl">Questions</span></div>
+          <div class="hstat-div"></div>
+          <div class="hstat"><span class="hstat-num"><i class="fa-solid fa-fire"></i></span><span class="hstat-lbl">Live Feed</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURES -->
+    <div id="featuresSection" class="features-section">
+      <div class="section-label">Why QuizVai?</div>
+      <h2 class="section-heading">Everything You Need to Excel</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="fc-icon blue-ic"><i class="fa-solid fa-stopwatch"></i></div>
+          <h3>Timed Quizzes</h3>
+          <p>Beat the clock! Quizzes have countdown timers — just like real exams. Auto-submits when time's up.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon orange-ic"><i class="fa-solid fa-fire-flame-curved"></i></div>
+          <h3>Live Mistake Feed</h3>
+          <p>See what your classmates get wrong in real-time. Learn from common mistakes before your exam.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon green-ic"><i class="fa-solid fa-chart-bar"></i></div>
+          <h3>Detailed Results</h3>
+          <p>Every quiz shows your score, correct answers, explanations, and what you skipped.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon purple-ic"><i class="fa-solid fa-layer-group"></i></div>
+          <h3>SSC &amp; HSC Batches</h3>
+          <p>Separate content for each batch. Your quizzes are tailored specifically for your curriculum.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon red-ic"><i class="fa-solid fa-lightbulb"></i></div>
+          <h3>Smart Explanations</h3>
+          <p>Every question can have an explanation. Understand why the answer is correct, not just what it is.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon teal-ic"><i class="fa-solid fa-shield-halved"></i></div>
+          <h3>Admin Control</h3>
+          <p>Teachers assign quizzes, manage student access, and monitor results from a powerful admin panel.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <div class="how-section">
+      <div class="section-label">Simple Process</div>
+      <h2 class="section-heading">How QuizVai Works</h2>
+      <div class="steps-row">
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <div class="step-icon"><i class="fa-solid fa-user-plus"></i></div>
+          <h3>Create Account</h3>
+          <p>Register with your name, email, and choose SSC or HSC batch.</p>
+        </div>
+        <div class="step-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <div class="step-icon"><i class="fa-solid fa-key"></i></div>
+          <h3>Get Access</h3>
+          <p>Your teacher assigns quizzes. They appear on your dashboard instantly.</p>
+        </div>
+        <div class="step-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <div class="step-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+          <h3>Take Quiz</h3>
+          <p>Answer MCQs within the time limit. Timer counts down — stay focused!</p>
+        </div>
+        <div class="step-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        <div class="step-card">
+          <div class="step-num">04</div>
+          <div class="step-icon"><i class="fa-solid fa-trophy"></i></div>
+          <h3>See Results</h3>
+          <p>Get your score instantly with explanations for every answer.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA BAND -->
+    <div class="cta-band">
+      <div class="cta-content">
+        <h2>Ready to Start Learning?</h2>
+        <p>Join thousands of students preparing smarter with QuizVai</p>
+        <button class="btn hero-btn-primary" onclick="scrollToAuth()">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign Up Now — It's Free
+        </button>
+      </div>
+    </div>
+
+    <!-- AUTH SECTION ANCHOR -->
+    <div id="authAnchor" style="scroll-margin-top: 70px;"></div>
+
     <!-- AUTH BOX -->
-    <div class="box auth-box" id="authBox">
-      <!-- LOGIN -->
-      <div id="loginForm">
-        <h2 style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-lock" style="color:var(--primary);"></i> Login</h2>
-        <p class="muted" style="margin-bottom:16px;">Welcome back! Sign in to continue.</p>
-
-        <div class="form-group">
-          <label><i class="fa-solid fa-envelope"></i> Email</label>
-          <input id="lEmail" type="email" placeholder="you@example.com">
-        </div>
-
-        <div class="form-group">
-          <label><i class="fa-solid fa-key"></i> Password</label>
-          <input id="lPass" type="password" placeholder="••••••••">
-        </div>
-
-        <button class="btn blue full" onclick="login()">
-          <i class="fa-solid fa-right-to-bracket"></i> Login
-        </button>
-
-        <p class="center muted" style="margin-top:14px;">
-          No account? <a href="javascript:void(0)" onclick="showReg()">Register here</a>
-        </p>
+    <div class="container">
+      <div class="auth-intro">
+        <i class="fa-solid fa-circle-user" style="font-size:36px;color:var(--primary);"></i>
+        <h2 style="margin:8px 0 4px;">Your Account</h2>
+        <p class="muted">Sign in or create a new account below</p>
       </div>
-
-      <!-- REGISTER -->
-      <div id="regForm" style="display:none">
-        <h2 style="display:flex;align-items:center;gap:8px;">
-          <i class="fa-solid fa-user-plus" style="color:var(--primary);"></i> Register
-        </h2>
-
-        <p class="muted" style="margin-bottom:16px;">Create your account to get started.</p>
-
-        <div class="form-group">
-          <label><i class="fa-solid fa-user"></i> Full Name</label>
-          <input id="rName" placeholder="John Doe">
-        </div>
-
-        <div class="form-group">
-          <label><i class="fa-solid fa-envelope"></i> Email</label>
-          <input id="rEmail" type="email" placeholder="you@example.com">
-        </div>
-
-        <div class="form-group">
-          <label><i class="fa-solid fa-key"></i> Password</label>
-          <input id="rPass" type="password" placeholder="Min 6 characters">
-        </div>
-
-        <div class="form-group">
-          <label><i class="fa-solid fa-layer-group"></i> Select Batch</label>
-
-          <div class="batch-select">
-            <label class="batch-option">
-              <input type="radio" name="batch" value="SSC" checked>
-              <span class="batch-card"><i class="fa-solid fa-school"></i> SSC</span>
-            </label>
-
-            <label class="batch-option">
-              <input type="radio" name="batch" value="HSC">
-              <span class="batch-card"><i class="fa-solid fa-graduation-cap"></i> HSC</span>
-            </label>
+      <div class="box auth-box" id="authBox">
+        <!-- LOGIN -->
+        <div id="loginForm">
+          <h2 style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-lock" style="color:var(--primary);"></i> Login</h2>
+          <p class="muted" style="margin-bottom:16px;">Welcome back! Sign in to continue.</p>
+          <div class="form-group">
+            <label><i class="fa-solid fa-envelope"></i> Email</label>
+            <input id="lEmail" type="email" placeholder="you@example.com">
           </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-key"></i> Password</label>
+            <input id="lPass" type="password" placeholder="••••••••">
+          </div>
+          <button class="btn blue full" onclick="login()"><i class="fa-solid fa-right-to-bracket"></i> Login</button>
+          <p class="center muted" style="margin-top:14px;">No account? <a href="javascript:void(0)" onclick="showReg()">Register here</a></p>
         </div>
 
-        <button class="btn blue full" onclick="register()">
-          <i class="fa-solid fa-user-plus"></i> Register
-        </button>
-
-        <p class="center muted" style="margin-top:14px;">
-          Have account? <a href="javascript:void(0)" onclick="showLogin()">Login here</a>
-        </p>
+        <!-- REGISTER -->
+        <div id="regForm" style="display:none">
+          <h2 style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-user-plus" style="color:var(--primary);"></i> Register</h2>
+          <p class="muted" style="margin-bottom:16px;">Create your account to get started.</p>
+          <div class="form-group">
+            <label><i class="fa-solid fa-user"></i> Full Name</label>
+            <input id="rName" placeholder="John Doe">
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-envelope"></i> Email</label>
+            <input id="rEmail" type="email" placeholder="you@example.com">
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-key"></i> Password</label>
+            <input id="rPass" type="password" placeholder="Min 6 characters">
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-layer-group"></i> Select Batch</label>
+            <div class="batch-select">
+              <label class="batch-option">
+                <input type="radio" name="batch" value="SSC" checked>
+                <span class="batch-card"><i class="fa-solid fa-school"></i> SSC</span>
+              </label>
+              <label class="batch-option">
+                <input type="radio" name="batch" value="HSC">
+                <span class="batch-card"><i class="fa-solid fa-graduation-cap"></i> HSC</span>
+              </label>
+            </div>
+          </div>
+          <button class="btn blue full" onclick="register()"><i class="fa-solid fa-user-plus"></i> Register</button>
+          <p class="center muted" style="margin-top:14px;">Have account? <a href="javascript:void(0)" onclick="showLogin()">Login here</a></p>
+        </div>
       </div>
     </div>
 
-    <!-- PUBLIC NEWSFEED -->
-    <div id="publicNewsfeed" style="display:none;">
-      <div class="dash-header" style="margin-bottom:0;">
-        <h1><i class="fa-solid fa-fire-flame-curved" style="color:#fb923c;"></i> Common Mistakes by Students</h1>
-        <span class="badge big gray"><i class="fa-solid fa-globe"></i> Public Feed</span>
+    <!-- FOOTER -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <img src="logo.jpg" alt="QuizVai" style="height:30px;border-radius:5px;">
+        <p style="color:rgba(255,255,255,0.5);font-size:12.5px;margin-top:8px;">© 2026 QuizVai · Learn, Play, Compete</p>
       </div>
+    </footer>
+  </div>
 
-      <div id="publicNewsfeedContainer" class="newsfeed-section">
-        <div class="newsfeed-header">
-          <h2 style="color:#fff;margin:0;font-size:15px;display:flex;align-items:center;gap:8px;">
-            <i class="fa-solid fa-spinner fa-spin"></i> Loading common mistakes...
-          </h2>
-        </div>
-
-        <div style="padding:16px 24px;color:var(--text3);font-size:13px;">
-          Fetching data...
-        </div>
-      </div>
-
-      <div class="box center" style="margin-top:12px;">
-        <p style="color:var(--text2);font-size:14px;">
-          <i class="fa-solid fa-info-circle" style="color:var(--info);"></i>
-          Sign in or create an account to take quizzes and see your personalized dashboard!
-        </p>
-      </div>
-    </div>
-
-    <!-- STUDENT DASHBOARD -->
-    <div id="dashboard" style="display:none">
+  <!-- ══════════ STUDENT DASHBOARD (shown after login) ══════════ -->
+  <div id="dashboard" style="display:none">
+    <div class="container">
       <div class="dash-header">
         <h1 id="welcome"></h1>
         <span class="badge big" id="batchBadge"></span>
@@ -144,19 +221,16 @@
           <div class="stat-num" id="statTotal">0</div>
           <div class="stat-label">Total Quizzes</div>
         </div>
-
         <div class="stat-card">
           <div class="stat-icon"><i class="fa-solid fa-circle-check" style="color:var(--success);"></i></div>
           <div class="stat-num" id="statDone">0</div>
           <div class="stat-label">Completed</div>
         </div>
-
         <div class="stat-card">
           <div class="stat-icon"><i class="fa-solid fa-hourglass-half" style="color:var(--warning);"></i></div>
           <div class="stat-num" id="statPending">0</div>
           <div class="stat-label">Pending</div>
         </div>
-
         <div class="stat-card">
           <div class="stat-icon"><i class="fa-solid fa-chart-line" style="color:var(--secondary);"></i></div>
           <div class="stat-num" id="statAvg">—</div>
@@ -171,17 +245,13 @@
             <i class="fa-solid fa-spinner fa-spin"></i> Loading common mistakes...
           </h2>
         </div>
-
-        <div style="padding:16px 24px;color:var(--text3);font-size:13px;">
-          Fetching data...
-        </div>
+        <div style="padding:16px 24px;color:var(--text3);font-size:13px;">Fetching data...</div>
       </div>
 
       <div class="box">
         <h2 style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
           <span><i class="fa-solid fa-clipboard-list" style="color:var(--primary);"></i> Your Quizzes</span>
         </h2>
-
         <div id="quizList"><div class="loader"></div></div>
       </div>
     </div>
@@ -193,42 +263,131 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="app.js"></script>
-
   <script>
+    function scrollToAuth() {
+      document.getElementById('authAnchor').scrollIntoView({ behavior: 'smooth' });
+    }
+    function scrollToFeatures() {
+      document.getElementById('featuresSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
     firebase.auth().onAuthStateChanged(function(u) {
       if (u) {
-        document.getElementById('publicNewsfeed').style.display = 'none';
-        document.getElementById('authBox').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-
         db.collection('users').doc(u.uid).get()
           .then(function(doc) {
-            if (!doc.exists) return;
+            if (!doc.exists) {
+              flash('User data not found. Please wait...', false);
+              setTimeout(function() {
+                db.collection('users').doc(u.uid).get().then(function(doc2) {
+                  if (doc2.exists) handleUserData(u.uid, doc2.data());
+                  else flash('Profile not found. Try logging out and back in.', false);
+                });
+              }, 2000);
+              return;
+            }
             handleUserData(u.uid, doc.data());
-          });
-
+          })
+          .catch(function(e) { flash('Error loading profile', false); });
       } else {
-        document.getElementById('authBox').style.display = 'block';
+        document.getElementById('landingPage').style.display = 'block';
         document.getElementById('dashboard').style.display = 'none';
-        document.getElementById('publicNewsfeed').style.display = 'block';
-
-        loadNewsfeed('publicNewsfeedContainer');
+        clearNav();
       }
     });
 
     function handleUserData(uid, data) {
       if (data.isAdmin) { window.location = 'admin.html'; return; }
-
-      document.getElementById('welcome').innerHTML =
-        '<i class="fa-solid fa-hand-wave"></i> Welcome, ' + data.name + '!';
-
+      document.getElementById('landingPage').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('welcome').innerHTML = '<i class="fa-solid fa-hand-wave" style="color:var(--warning);"></i> Welcome, ' + data.name + '!';
       var batch = data.batch || 'SSC';
-      document.getElementById('batchBadge').innerHTML = batch;
-
-      loadNewsfeed('newsfeedContainer', batch);
+      var isHSC = batch === 'HSC';
+      document.getElementById('batchBadge').innerHTML = '<i class="fa-solid ' + (isHSC ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + batch;
+      document.getElementById('batchBadge').className = 'badge big ' + (isHSC ? 'purple' : 'blue');
+      setNav(data.name, batch);
+      loadNewsfeed('newsfeedContainer');
       loadStudentQuizzes(uid, batch);
     }
-  </script>
 
+    function loadStudentQuizzes(uid, batch) {
+      db.collection('access').where('userId', '==', uid).get()
+        .then(function(accessSnap) {
+          var accessQuizIds = [];
+          accessSnap.docs.forEach(function(d) { accessQuizIds.push(d.data().quizId); });
+          return db.collection('attempts').where('userId', '==', uid).get()
+            .then(function(attemptSnap) {
+              var attempted = {};
+              attemptSnap.docs.forEach(function(d) {
+                var ad = d.data();
+                attempted[ad.quizId] = { id: d.id, score: ad.score, total: ad.total };
+              });
+              return { accessQuizIds: accessQuizIds, attempted: attempted };
+            });
+        })
+        .then(function(result) {
+          var accessQuizIds = result.accessQuizIds;
+          var attempted = result.attempted;
+          if (accessQuizIds.length === 0) {
+            document.getElementById('quizList').innerHTML = '<p class="muted center"><i class="fa-solid fa-inbox" style="font-size:24px;display:block;margin-bottom:8px;"></i>No quizzes assigned yet.</p>';
+            updateStats(0, 0, 0, []); return;
+          }
+          var promises = accessQuizIds.map(function(qid) { return db.collection('quizzes').doc(qid).get(); });
+          return Promise.all(promises).then(function(quizDocs) {
+            var html = '<table><tr>' +
+              '<th><i class="fa-solid fa-book"></i> Subject</th>' +
+              '<th><i class="fa-solid fa-file-alt"></i> Quiz</th>' +
+              '<th><i class="fa-solid fa-question-circle"></i> Qs</th>' +
+              '<th><i class="fa-regular fa-clock"></i> Time</th>' +
+              '<th><i class="fa-solid fa-flag"></i> Status</th>' +
+              '<th></th></tr>';
+            var total = 0, done = 0, scores = [];
+            for (var i = 0; i < quizDocs.length; i++) {
+              var qDoc = quizDocs[i];
+              if (!qDoc.exists) continue;
+              var q = qDoc.data(); var qid = qDoc.id;
+              if (q.batch && q.batch !== batch) continue;
+              total++;
+              var att = attempted[qid];
+              if (att) { done++; scores.push(Math.round((att.score / att.total) * 100)); }
+              var timeLimitStr = q.timeLimit ? '<span style="background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;"><i class="fa-regular fa-clock"></i> ' + q.timeLimit + 'm</span>' : '<span style="color:var(--text3);font-size:12px;">No limit</span>';
+              html += '<tr>' +
+                '<td><span class="badge gray"><i class="fa-solid fa-tag"></i> ' + (q.subject || '—') + '</span></td>' +
+                '<td style="font-weight:500;">' + q.title + '</td>' +
+                '<td><span style="background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;">' + q.questions.length + '</span></td>' +
+                '<td>' + timeLimitStr + '</td>' +
+                '<td>' + (att
+                  ? '<span class="badge green"><i class="fa-solid fa-check"></i> Done (' + att.score + '/' + att.total + ')</span>'
+                  : '<span class="badge orange"><i class="fa-solid fa-clock"></i> Pending</span>') + '</td>' +
+                '<td>' + (att
+                  ? '<a class="btn sm gray" href="result.html?id=' + att.id + '"><i class="fa-solid fa-chart-bar"></i> Result</a>'
+                  : '<a class="btn sm blue" href="quiz.html?id=' + qid + '"><i class="fa-solid fa-play"></i> Start</a>') + '</td></tr>';
+            }
+            if (total === 0) {
+              document.getElementById('quizList').innerHTML = '<p class="muted center">No quizzes for your batch yet.</p>';
+              updateStats(0, 0, 0, []); return;
+            }
+            html += '</table>';
+            document.getElementById('quizList').innerHTML = html;
+            updateStats(total, done, total - done, scores);
+          });
+        })
+        .catch(function(e) {
+          document.getElementById('quizList').innerHTML = '<p class="muted center"><i class="fa-solid fa-triangle-exclamation"></i> Error loading quizzes.</p>';
+        });
+    }
+
+    function updateStats(total, done, pending, scores) {
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statDone').textContent = done;
+      document.getElementById('statPending').textContent = pending;
+      var avg = '—';
+      if (scores.length > 0) {
+        var sum = 0;
+        for (var i = 0; i < scores.length; i++) sum += scores[i];
+        avg = Math.round(sum / scores.length) + '%';
+      }
+      document.getElementById('statAvg').textContent = avg;
+    }
+  </script>
 </body>
-</html>
+  </html>
