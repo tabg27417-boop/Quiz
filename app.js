@@ -203,4 +203,4 @@ function renderNewsfeedTicker(container, list) {
       '<span style="color:rgba(255,255,255,0.6);font-size:12px;display:flex;align-items:center;gap:5px;"><i class="fa-solid fa-circle" style="color:#22c55e;font-size:8px;"></i>Live</span>' +
     '</div>' +
     '<div class="newsfeed-ticker"><div class="newsfeed-track">' + trackHtml + '</div></div>';
-           }
+                                                                                                                                                         }
