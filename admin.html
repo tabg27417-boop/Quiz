@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel</title>
+  <title>Admin Panel – QuizVai</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
   <nav>
-    <span class="brand"><i class="fa-solid fa-shield-halved"></i> Admin Panel</span>
+    <span class="brand">
+      <img src="logo.jpg" alt="QuizVai" style="height:34px;border-radius:6px;object-fit:contain;">
+      <span style="font-size:11px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:10px;margin-left:4px;">Admin</span>
+    </span>
     <div id="navRight"></div>
   </nav>
 
@@ -51,7 +54,7 @@
 
     <!-- ADD QUIZ TAB -->
     <div id="addTab" class="tabContent box" style="display:none">
-      <h2 id="addTabTitle"><i class="fa-solid fa-plus-circle" style="color:var(--primary);"></i> Create Quiz</h2>
+      <h2><i class="fa-solid fa-plus-circle" style="color:var(--primary);"></i> Create Quiz</h2>
 
       <div id="quizSetup">
         <div class="form-group">
@@ -81,8 +84,16 @@
             <input id="qCount" type="number" min="1" max="100" placeholder="e.g. 10">
           </div>
           <div class="form-group">
-            <label><i class="fa-solid fa-stopwatch"></i> Time Limit (minutes) <span style="font-weight:400;color:var(--text3);">— 0 or empty = no limit</span></label>
-            <input id="qTimeLimit" type="number" min="0" max="300" placeholder="e.g. 30">
+            <label><i class="fa-regular fa-clock"></i> Time Limit (minutes) <span style="font-weight:400;color:var(--text3);">— optional</span></label>
+            <input id="qTimeLimit" type="number" min="1" max="300" placeholder="e.g. 30 (leave blank for no limit)">
+          </div>
+        </div>
+        <!-- Timer preview -->
+        <div id="timerPreview" style="display:none;background:var(--primary-light);border:1px solid var(--primary);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+          <i class="fa-solid fa-stopwatch" style="color:var(--primary);font-size:20px;"></i>
+          <div>
+            <strong style="color:var(--primary);">Timed Quiz</strong>
+            <div style="font-size:12.5px;color:var(--text2);">Students will have <strong id="timerPreviewText">—</strong> to complete this quiz. It auto-submits when time runs out.</div>
           </div>
         </div>
         <button class="btn blue" onclick="startAddingQuestions()"><i class="fa-solid fa-arrow-right"></i> Next: Add Questions</button>
@@ -94,8 +105,8 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <span class="badge blue" id="setupBatchBadge"></span>
             <span class="badge gray" id="setupSubjectBadge"></span>
-            <span class="badge orange" id="setupTimeBadge" style="display:none;"></span>
             <strong id="setupTitleBadge"></strong>
+            <span class="badge orange" id="setupTimerBadge" style="display:none;"></span>
           </div>
           <button class="btn sm gray" onclick="backToSetup()"><i class="fa-solid fa-arrow-left"></i> Back</button>
         </div>
@@ -195,7 +206,7 @@
         </h2>
         <p style="color:var(--text2);font-size:13.5px;margin-bottom:16px;">
           <i class="fa-solid fa-info-circle" style="color:var(--info);"></i>
-          This newsfeed is publicly visible on the student dashboard (filtered by batch) and on the login page (all batches) for visitors. Adding <strong>explanations</strong> to questions makes them more educational in the feed.
+          This newsfeed is publicly visible on the student dashboard. It shows MCQs that students most commonly get wrong, sorted by error count. Adding <strong>explanations</strong> to questions makes them more educational in the feed.
         </p>
         <button class="btn blue" onclick="loadNewsfeed('adminNewsfeedPreview'); document.getElementById('adminNewsfeedPreview').style.display='block';">
           <i class="fa-solid fa-rotate"></i> Refresh Newsfeed Preview
@@ -210,9 +221,54 @@
           <li>Ranks them by how many students got each one wrong</li>
           <li>Shows question text, explanation, subject badge, and error count</li>
           <li>Auto-scrolls as a ticker — hovering pauses it</li>
-          <li><strong>Logged-in students</strong> see only mistakes from their own batch (SSC/HSC)</li>
-          <li><strong>Visitors (not signed in)</strong> see all mistakes from all batches — like a public Facebook-style feed</li>
+          <li>Visible to all logged-in students on their dashboard</li>
         </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT QUIZ MODAL -->
+  <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;overflow-y:auto;padding:20px;">
+    <div style="max-width:760px;margin:0 auto;background:var(--surface);border-radius:14px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);position:relative;">
+      <button onclick="closeEditModal()" style="position:absolute;top:16px;right:16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px;color:var(--text2);display:flex;align-items:center;justify-content:center;">✕</button>
+      <h2 style="margin-bottom:18px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Edit Quiz</h2>
+      <input type="hidden" id="editQuizId">
+
+      <!-- Quiz meta -->
+      <div class="form-group">
+        <label><i class="fa-solid fa-layer-group"></i> Batch</label>
+        <div class="batch-select">
+          <label class="batch-option"><input type="radio" name="editBatch" value="SSC"><span class="batch-card"><i class="fa-solid fa-school"></i> SSC</span></label>
+          <label class="batch-option"><input type="radio" name="editBatch" value="HSC"><span class="batch-card"><i class="fa-solid fa-graduation-cap"></i> HSC</span></label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label><i class="fa-solid fa-book-open"></i> Subject</label>
+          <input id="editSubject" placeholder="e.g. Physics">
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-file-alt"></i> Title</label>
+          <input id="editTitle" placeholder="e.g. Chapter 1 Test">
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fa-regular fa-clock"></i> Time Limit (minutes) <span style="font-weight:400;color:var(--text3);">— optional</span></label>
+        <input id="editTimeLimit" type="number" min="1" max="300" placeholder="Leave blank for no limit">
+      </div>
+
+      <!-- Questions editor -->
+      <div style="margin-top:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h3 style="display:flex;align-items:center;gap:8px;margin:0;"><i class="fa-solid fa-list-ol" style="color:var(--primary);"></i> Questions</h3>
+          <button class="btn sm green" onclick="addEditQuestion()"><i class="fa-solid fa-plus"></i> Add Question</button>
+        </div>
+        <div id="editQuestionsContainer"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap;">
+        <button class="btn green" onclick="saveEditedQuiz()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+        <button class="btn gray" onclick="closeEditModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
       </div>
     </div>
   </div>
@@ -227,7 +283,25 @@
     var allStudents = [], allQuizzes = [], allAccess = [];
     var quizSetupData = { batch: '', subject: '', title: '', totalQ: 0, timeLimit: 0 };
     var quizQuestions = [], currentQIndex = 0;
-    var editingQuizId = null; // Track if we're editing
+
+    // Live timer preview
+    document.addEventListener('DOMContentLoaded', function() {
+      var timeLimitInput = document.getElementById('qTimeLimit');
+      if (timeLimitInput) {
+        timeLimitInput.addEventListener('input', function() {
+          var val = parseInt(this.value);
+          var preview = document.getElementById('timerPreview');
+          var previewText = document.getElementById('timerPreviewText');
+          if (val && val > 0) {
+            preview.style.display = 'flex';
+            var h = Math.floor(val / 60), m = val % 60;
+            previewText.textContent = (h > 0 ? h + ' hour' + (h > 1 ? 's' : '') + (m > 0 ? ' ' + m + ' minutes' : '') : val + ' minutes');
+          } else {
+            preview.style.display = 'none';
+          }
+        });
+      }
+    });
 
     firebase.auth().onAuthStateChanged(function(u) {
       if (!u) { window.location = 'index.html'; return; }
@@ -250,22 +324,6 @@
       document.getElementById(id).style.display = 'block';
       btn.classList.add('active');
       if (id === 'resultsTab') loadResults();
-      // Reset edit mode when switching to add tab fresh
-      if (id === 'addTab' && !editingQuizId) {
-        resetAddForm();
-      }
-    }
-
-    function resetAddForm() {
-      editingQuizId = null;
-      document.getElementById('addTabTitle').innerHTML = '<i class="fa-solid fa-plus-circle" style="color:var(--primary);"></i> Create Quiz';
-      document.getElementById('saveQuizBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Quiz';
-      document.getElementById('qSubject').value = '';
-      document.getElementById('qTitle').value = '';
-      document.getElementById('qCount').value = '';
-      document.getElementById('qTimeLimit').value = '';
-      document.getElementById('quizSetup').style.display = 'block';
-      document.getElementById('quizQuestions').style.display = 'none';
     }
 
     // ============ QUIZ SETUP ============
@@ -280,33 +338,19 @@
       if (!count || count < 1) { flash('Enter valid number of questions', false); return; }
       if (count > 100) { flash('Maximum 100 questions', false); return; }
       quizSetupData = { batch: batch, subject: subject, title: title, totalQ: count, timeLimit: timeLimit };
-
-      // If not editing or question count changed, reset questions
-      if (!editingQuizId || quizQuestions.length !== count) {
-        if (!editingQuizId) {
-          quizQuestions = [];
-          for (var i = 0; i < count; i++) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
-        } else {
-          // Editing: adjust array size
-          while (quizQuestions.length < count) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
-          if (quizQuestions.length > count) quizQuestions = quizQuestions.slice(0, count);
-        }
-      }
-      currentQIndex = 0;
-
+      quizQuestions = []; currentQIndex = 0;
+      for (var i = 0; i < count; i++) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
       document.getElementById('setupBatchBadge').innerHTML = '<i class="fa-solid ' + (batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + batch;
       document.getElementById('setupBatchBadge').className = 'badge ' + (batch === 'HSC' ? 'purple' : 'blue');
       document.getElementById('setupSubjectBadge').innerHTML = '<i class="fa-solid fa-book-open"></i> ' + subject;
       document.getElementById('setupTitleBadge').textContent = title;
-
-      // Show time badge
+      var timerBadge = document.getElementById('setupTimerBadge');
       if (timeLimit > 0) {
-        document.getElementById('setupTimeBadge').style.display = 'inline-flex';
-        document.getElementById('setupTimeBadge').innerHTML = '<i class="fa-solid fa-stopwatch"></i> ' + timeLimit + ' min';
+        timerBadge.innerHTML = '<i class="fa-regular fa-clock"></i> ' + timeLimit + ' min';
+        timerBadge.style.display = 'inline-flex';
       } else {
-        document.getElementById('setupTimeBadge').style.display = 'none';
+        timerBadge.style.display = 'none';
       }
-
       document.getElementById('quizSetup').style.display = 'none';
       document.getElementById('quizQuestions').style.display = 'block';
       loadQuestionForm();
@@ -349,10 +393,6 @@
         correct: document.getElementById('cqCorrect').value,
         explanation: document.getElementById('cqExp').value.trim()
       };
-      // Preserve existing ID if editing
-      if (quizQuestions[currentQIndex]._id) {
-        quizQuestions[currentQIndex].id = quizQuestions[currentQIndex]._id;
-      }
     }
 
     function validateCurrentQuestion() {
@@ -403,38 +443,26 @@
       var qs = [];
       for (var i = 0; i < quizQuestions.length; i++) {
         var q = Object.assign({}, quizQuestions[i]);
-        // Use existing ID or generate new one
-        if (!q.id && !q._id) q.id = 'q' + (i + 1) + '_' + Date.now();
-        if (q._id) { q.id = q._id; delete q._id; }
+        q.id = 'q' + (i + 1) + '_' + Date.now();
         qs.push(q);
       }
-
       var quizData = {
         batch: quizSetupData.batch, subject: quizSetupData.subject, title: quizSetupData.title,
-        questions: qs, timeLimit: quizSetupData.timeLimit || 0
+        questions: qs, createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-
-      var savePromise;
-      if (editingQuizId) {
-        // Update existing quiz
-        quizData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-        savePromise = db.collection('quizzes').doc(editingQuizId).update(quizData);
-      } else {
-        // Create new quiz
-        quizData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        savePromise = db.collection('quizzes').add(quizData);
-      }
-
-      savePromise
+      if (quizSetupData.timeLimit > 0) quizData.timeLimit = quizSetupData.timeLimit;
+      db.collection('quizzes').add(quizData)
       .then(function() {
-        flash(editingQuizId ? 'Quiz updated successfully!' : 'Quiz saved successfully!');
+        flash('Quiz saved successfully!' + (quizSetupData.timeLimit > 0 ? ' (' + quizSetupData.timeLimit + ' min timer)' : ''));
         btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Quiz';
-        resetAddForm();
-        editingQuizId = null;
+        document.getElementById('qSubject').value = '';
+        document.getElementById('qTitle').value = '';
+        document.getElementById('qCount').value = '';
+        document.getElementById('qTimeLimit').value = '';
+        document.getElementById('timerPreview').style.display = 'none';
+        document.getElementById('quizSetup').style.display = 'block';
+        document.getElementById('quizQuestions').style.display = 'none';
         loadAll();
-        // Switch to quizzes tab
-        var quizzesBtn = document.querySelector('.tab');
-        if (quizzesBtn) switchTab('quizzesTab', quizzesBtn);
       })
       .catch(function(e) {
         flash('Error: ' + e.message, false);
@@ -442,154 +470,175 @@
       });
     }
 
-    // ============ EDIT QUIZ ============
-    function editQuiz(id) {
-      var quiz = null;
-      for (var i = 0; i < allQuizzes.length; i++) { if (allQuizzes[i].id === id) { quiz = allQuizzes[i]; break; } }
-      if (!quiz) { flash('Quiz not found', false); return; }
-
-      editingQuizId = id;
-      var q = quiz.data;
-
-      // Fill setup form
-      document.getElementById('addTabTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--warning);"></i> Edit Quiz';
-      var batchRadios = document.querySelectorAll('input[name="qBatch"]');
-      for (var i = 0; i < batchRadios.length; i++) {
-        batchRadios[i].checked = batchRadios[i].value === q.batch;
-      }
-      document.getElementById('qSubject').value = q.subject || '';
-      document.getElementById('qTitle').value = q.title || '';
-      document.getElementById('qCount').value = q.questions.length;
-      document.getElementById('qTimeLimit').value = q.timeLimit || '';
-
-      // Load questions into editor
-      quizQuestions = [];
-      for (var i = 0; i < q.questions.length; i++) {
-        var qn = q.questions[i];
-        quizQuestions.push({
-          text: qn.text || '',
-          a: qn.a || '', b: qn.b || '', c: qn.c || '', d: qn.d || '',
-          correct: qn.correct || 'a',
-          explanation: qn.explanation || '',
-          _id: qn.id // preserve original ID
-        });
-      }
-
-      // Switch to add tab
-      var tabs = document.querySelectorAll('.tabContent');
-      for (var i = 0; i < tabs.length; i++) tabs[i].style.display = 'none';
-      var buttons = document.querySelectorAll('.tab');
-      for (var i = 0; i < buttons.length; i++) buttons[i].classList.remove('active');
-      document.getElementById('addTab').style.display = 'block';
-      buttons[1].classList.add('active'); // Add Quiz tab
-
-      // Show setup form to let admin review/modify before going to questions
-      document.getElementById('quizSetup').style.display = 'block';
-      document.getElementById('quizQuestions').style.display = 'none';
-
-      window.scrollTo(0, 0);
-      flash('Editing quiz: ' + q.title + '. Review settings then click Next.');
-    }
-
     // ============ LOAD ALL ============
     function loadAll() {
       Promise.all([
-        db.collection('quizzes').get(),
         db.collection('users').where('isAdmin', '==', false).get(),
+        db.collection('quizzes').get(),
         db.collection('access').get()
       ]).then(function(results) {
-        allQuizzes = []; results[0].forEach(function(d) { allQuizzes.push({ id: d.id, data: d.data() }); });
-        allStudents = []; results[1].forEach(function(d) { allStudents.push({ id: d.id, data: d.data() }); });
-        allAccess = []; results[2].forEach(function(d) { allAccess.push({ id: d.id, data: d.data() }); });
-        updateSubjectFilter(); renderQuizList(); renderAccessTab();
-      }).catch(function(e) { flash('Error loading data: ' + e.message, false); });
+        allStudents = results[0].docs.map(function(d) { return { id: d.id, data: d.data() }; });
+        allQuizzes = results[1].docs.map(function(d) { return { id: d.id, data: d.data() }; });
+        allAccess = results[2].docs.map(function(d) { return { id: d.id, data: d.data() }; });
+        renderQuizList();
+        renderAccessTab();
+        buildSubjectFilter();
+      });
     }
 
-    function updateSubjectFilter() {
-      var subjects = [];
-      for (var i = 0; i < allQuizzes.length; i++) {
-        var s = allQuizzes[i].data.subject || 'Unknown';
-        if (subjects.indexOf(s) === -1) subjects.push(s);
-      }
-      var html = '<option value="all">All</option>';
-      for (var i = 0; i < subjects.length; i++) html += '<option value="' + subjects[i] + '">' + subjects[i] + '</option>';
-      document.getElementById('filterSubject').innerHTML = html;
+    function buildSubjectFilter() {
+      var subjects = {};
+      allQuizzes.forEach(function(q) { if (q.data.subject) subjects[q.data.subject] = true; });
+      var opts = '<option value="all">All</option>';
+      Object.keys(subjects).sort().forEach(function(s) { opts += '<option value="' + s + '">' + s + '</option>'; });
+      document.getElementById('filterSubject').innerHTML = opts;
     }
 
     function renderQuizList() {
-      var batchF = document.getElementById('filterBatch').value;
-      var subjectF = document.getElementById('filterSubject').value;
-      var filtered = [];
-      for (var i = 0; i < allQuizzes.length; i++) {
-        var q = allQuizzes[i];
-        if ((batchF === 'all' || (q.data.batch || '') === batchF) && (subjectF === 'all' || (q.data.subject || '') === subjectF)) filtered.push(q);
-      }
-      if (filtered.length === 0) { document.getElementById('adminQuizList').innerHTML = '<p class="muted center"><i class="fa-solid fa-inbox"></i> No quizzes found</p>'; return; }
-      var html = '<table><tr><th>Batch</th><th>Subject</th><th>Title</th><th>Qs</th><th>Time</th><th>Actions</th></tr>';
-      for (var i = 0; i < filtered.length; i++) {
-        var q = filtered[i];
-        var bc = q.data.batch === 'HSC' ? 'purple' : 'blue';
-        var timeDisplay = q.data.timeLimit ? q.data.timeLimit + ' min' : 'No limit';
+      var batchFilter = document.getElementById('filterBatch').value;
+      var subjectFilter = document.getElementById('filterSubject').value;
+      var quizzes = allQuizzes.filter(function(q) {
+        return (batchFilter === 'all' || (q.data.batch || '') === batchFilter) &&
+               (subjectFilter === 'all' || (q.data.subject || '') === subjectFilter);
+      });
+      if (quizzes.length === 0) { document.getElementById('adminQuizList').innerHTML = '<p class="muted center">No quizzes found</p>'; return; }
+      var html = '<table><tr><th>Batch</th><th>Subject</th><th>Title</th><th>Questions</th><th>Time Limit</th><th></th></tr>';
+      for (var i = 0; i < quizzes.length; i++) {
+        var q = quizzes[i];
+        var timeLimitCell = q.data.timeLimit
+          ? '<span class="badge orange"><i class="fa-regular fa-clock"></i> ' + q.data.timeLimit + ' min</span>'
+          : '<span style="color:var(--text3);font-size:12px;">None</span>';
         html += '<tr>' +
-          '<td><span class="badge ' + bc + '"><i class="fa-solid ' + (q.data.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + (q.data.batch || '—') + '</span></td>' +
+          '<td><span class="badge ' + (q.data.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (q.data.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + (q.data.batch || '?') + '</span></td>' +
           '<td><span class="badge gray"><i class="fa-solid fa-tag"></i> ' + (q.data.subject || '—') + '</span></td>' +
           '<td style="font-weight:500;">' + q.data.title + '</td>' +
           '<td><span style="background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;">' + q.data.questions.length + '</span></td>' +
-          '<td><span class="badge ' + (q.data.timeLimit ? 'orange' : 'gray') + '" style="font-size:11px;"><i class="fa-solid fa-stopwatch"></i> ' + timeDisplay + '</span></td>' +
-          '<td>' +
-            '<button class="btn sm blue" onclick="viewQuiz(\'' + q.id + '\')"><i class="fa-solid fa-eye"></i> View</button> ' +
-            '<button class="btn sm orange" onclick="editQuiz(\'' + q.id + '\')"><i class="fa-solid fa-pen-to-square"></i> Edit</button> ' +
-            '<button class="btn sm red" onclick="delQuiz(\'' + q.id + '\')"><i class="fa-solid fa-trash"></i> Delete</button>' +
-          '</td></tr>';
+          '<td>' + timeLimitCell + '</td>' +
+          '<td style="display:flex;gap:6px;"><button class="btn sm blue" onclick="openEditModal(\'' + q.id + '\')"><i class="fa-solid fa-pen-to-square"></i> Edit</button><button class="btn sm red" onclick="deleteQuiz(\'' + q.id + '\')"><i class="fa-solid fa-trash"></i> Delete</button></td></tr>';
       }
       html += '</table>';
       document.getElementById('adminQuizList').innerHTML = html;
     }
 
-    function viewQuiz(id) {
-      var quiz = null;
-      for (var i = 0; i < allQuizzes.length; i++) { if (allQuizzes[i].id === id) { quiz = allQuizzes[i]; break; } }
-      if (!quiz) return;
-      var q = quiz.data;
-      var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:1000;overflow:auto;padding:20px;" onclick="if(event.target===this)this.remove()">';
-      html += '<div style="max-width:700px;margin:40px auto;background:#fff;border-radius:14px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
-      html += '<h2 style="margin:0;">' + q.title + '</h2>';
-      html += '<button class="btn sm gray" onclick="this.closest(\'div[style*=fixed]\').remove()"><i class="fa-solid fa-xmark"></i> Close</button>';
-      html += '</div>';
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">';
-      html += '<span class="badge ' + (q.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (q.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + (q.batch || '—') + '</span>';
-      html += '<span class="badge gray"><i class="fa-solid fa-book-open"></i> ' + (q.subject || '—') + '</span>';
-      html += '<span class="badge gray"><i class="fa-solid fa-circle-question"></i> ' + q.questions.length + ' questions</span>';
-      if (q.timeLimit) html += '<span class="badge orange"><i class="fa-solid fa-stopwatch"></i> ' + q.timeLimit + ' min</span>';
-      html += '</div><hr>';
-      for (var i = 0; i < q.questions.length; i++) {
-        var qs = q.questions[i];
-        html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin:10px 0;">';
-        html += '<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;"><span style="background:var(--primary);color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;flex-shrink:0;">Q' + (i+1) + '</span><strong>' + qs.text + '</strong></div>';
-        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
-        ['a','b','c','d'].forEach(function(opt) {
-          var isC = qs.correct === opt;
-          html += '<div style="padding:7px 10px;border-radius:8px;background:' + (isC ? '#dcfce7' : '#fff') + ';border:1px solid ' + (isC ? '#86efac' : 'var(--border)') + ';font-size:13px;">';
-          html += '<span style="background:var(--border);padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;margin-right:5px;">' + opt.toUpperCase() + '</span>' + qs[opt];
-          if (isC) html += ' <i class="fa-solid fa-check-circle" style="color:var(--success);float:right;"></i>';
-          html += '</div>';
-        });
-        html += '</div>';
-        if (qs.explanation) html += '<div style="margin-top:10px;padding:8px 12px;background:#fffbeb;border-radius:8px;border-left:3px solid var(--warning);font-size:13px;color:var(--text2);"><i class="fa-solid fa-lightbulb" style="color:var(--warning);"></i> ' + qs.explanation + '</div>';
-        html += '</div>';
-      }
-      html += '</div></div>';
-      document.body.insertAdjacentHTML('beforeend', html);
+    function deleteQuiz(qid) {
+      if (!confirm('Delete this quiz? This cannot be undone.')) return;
+      db.collection('quizzes').doc(qid).delete()
+        .then(function() { flash('Quiz deleted'); loadAll(); })
+        .catch(function(e) { flash('Error: ' + e.message, false); });
     }
 
-    function delQuiz(id) {
-      if (!confirm('Delete this quiz and all related data?')) return;
-      Promise.all([
-        db.collection('quizzes').doc(id).delete(),
-        db.collection('access').where('quizId', '==', id).get().then(function(snap) { return Promise.all(snap.docs.map(function(d) { return d.ref.delete(); })); }),
-        db.collection('attempts').where('quizId', '==', id).get().then(function(snap) { return Promise.all(snap.docs.map(function(d) { return d.ref.delete(); })); })
-      ]).then(function() { flash('Deleted'); loadAll(); })
+    // ============ EDIT QUIZ ============
+    var editQuizQuestions = [];
+
+    function openEditModal(qid) {
+      var quiz = allQuizzes.find(function(q) { return q.id === qid; });
+      if (!quiz) { flash('Quiz not found', false); return; }
+      var d = quiz.data;
+      document.getElementById('editQuizId').value = qid;
+      document.getElementById('editSubject').value = d.subject || '';
+      document.getElementById('editTitle').value = d.title || '';
+      document.getElementById('editTimeLimit').value = d.timeLimit || '';
+      var batchRadios = document.querySelectorAll('input[name="editBatch"]');
+      batchRadios.forEach(function(r) { r.checked = r.value === (d.batch || 'SSC'); });
+      // Deep copy questions
+      editQuizQuestions = d.questions.map(function(q) { return Object.assign({}, q); });
+      renderEditQuestions();
+      document.getElementById('editModal').style.display = 'block';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    function renderEditQuestions() {
+      var container = document.getElementById('editQuestionsContainer');
+      var html = '';
+      for (var i = 0; i < editQuizQuestions.length; i++) {
+        var q = editQuizQuestions[i];
+        var idx = i;
+        html += '<div class="q-block" style="margin-bottom:14px;position:relative;" id="editQ_' + i + '">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
+        html += '<strong style="color:var(--primary);display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-circle-question"></i> Question ' + (i + 1) + '</strong>';
+        html += '<button class="btn sm red" onclick="removeEditQuestion(' + i + ')" title="Remove"><i class="fa-solid fa-trash"></i></button>';
+        html += '</div>';
+        html += '<div class="form-group"><label>Question Text</label><textarea class="eq-text" data-idx="' + i + '" rows="2" style="width:100%;box-sizing:border-box;">' + escHtml(q.text) + '</textarea></div>';
+        html += '<div class="grid2">';
+        ['a','b','c','d'].forEach(function(opt) {
+          html += '<div class="form-group"><label><span style="background:var(--border);padding:1px 7px;border-radius:4px;font-size:12px;">' + opt.toUpperCase() + '</span> Option ' + opt.toUpperCase() + '</label>';
+          html += '<input class="eq-opt" data-idx="' + i + '" data-opt="' + opt + '" value="' + escHtml(q[opt] || '') + '"></div>';
+        });
+        html += '</div>';
+        html += '<div class="form-group" style="max-width:200px;"><label><i class="fa-solid fa-check-circle" style="color:var(--success);"></i> Correct Answer</label>';
+        html += '<select class="eq-correct" data-idx="' + i + '">';
+        ['a','b','c','d'].forEach(function(opt) {
+          html += '<option value="' + opt + '"' + (q.correct === opt ? ' selected' : '') + '>' + opt.toUpperCase() + '</option>';
+        });
+        html += '</select></div>';
+        html += '<div class="form-group"><label><i class="fa-solid fa-lightbulb" style="color:var(--warning);"></i> Explanation <span style="font-weight:400;color:var(--text3);">(optional)</span></label>';
+        html += '<textarea class="eq-exp" data-idx="' + i + '" rows="2" style="width:100%;box-sizing:border-box;">' + escHtml(q.explanation || '') + '</textarea></div>';
+        html += '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function collectEditQuestions() {
+      var texts = document.querySelectorAll('.eq-text');
+      var opts = document.querySelectorAll('.eq-opt');
+      var corrects = document.querySelectorAll('.eq-correct');
+      var exps = document.querySelectorAll('.eq-exp');
+      texts.forEach(function(el) { editQuizQuestions[el.dataset.idx].text = el.value.trim(); });
+      opts.forEach(function(el) { editQuizQuestions[el.dataset.idx][el.dataset.opt] = el.value.trim(); });
+      corrects.forEach(function(el) { editQuizQuestions[el.dataset.idx].correct = el.value; });
+      exps.forEach(function(el) { editQuizQuestions[el.dataset.idx].explanation = el.value.trim(); });
+    }
+
+    function addEditQuestion() {
+      collectEditQuestions();
+      editQuizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '', id: 'q' + Date.now() });
+      renderEditQuestions();
+      var container = document.getElementById('editQuestionsContainer');
+      container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function removeEditQuestion(idx) {
+      if (editQuizQuestions.length <= 1) { flash('Quiz must have at least 1 question', false); return; }
+      if (!confirm('Remove question ' + (idx + 1) + '?')) return;
+      collectEditQuestions();
+      editQuizQuestions.splice(idx, 1);
+      renderEditQuestions();
+    }
+
+    function saveEditedQuiz() {
+      collectEditQuestions();
+      var qid = document.getElementById('editQuizId').value;
+      var batch = document.querySelector('input[name="editBatch"]:checked').value;
+      var subject = document.getElementById('editSubject').value.trim();
+      var title = document.getElementById('editTitle').value.trim();
+      var timeLimit = parseInt(document.getElementById('editTimeLimit').value) || 0;
+      if (!subject) { flash('Enter subject name', false); return; }
+      if (!title) { flash('Enter quiz title', false); return; }
+      for (var i = 0; i < editQuizQuestions.length; i++) {
+        var q = editQuizQuestions[i];
+        if (!q.text) { flash('Question ' + (i + 1) + ' has no text', false); return; }
+        if (!q.a || !q.b || !q.c || !q.d) { flash('Question ' + (i + 1) + ' is missing options', false); return; }
+      }
+      // Preserve existing IDs, assign new ones to added questions
+      var qs = editQuizQuestions.map(function(q, i) {
+        var copy = Object.assign({}, q);
+        if (!copy.id) copy.id = 'q' + (i + 1) + '_' + Date.now();
+        return copy;
+      });
+      var updateData = { batch: batch, subject: subject, title: title, questions: qs };
+      if (timeLimit > 0) updateData.timeLimit = timeLimit;
+      else updateData.timeLimit = firebase.firestore.FieldValue.delete();
+      db.collection('quizzes').doc(qid).update(updateData)
+        .then(function() { flash('Quiz updated successfully!'); closeEditModal(); loadAll(); })
         .catch(function(e) { flash('Error: ' + e.message, false); });
     }
 
@@ -698,18 +747,17 @@
             var uData = r.userDoc.data(), studentBatch = uData.batch || 'SSC';
             if (batchFilter !== 'all' && studentBatch !== batchFilter) continue;
             var pct = Math.round(r.attempt.score / r.attempt.total * 100);
-            filtered.push({ name: uData.name, batch: studentBatch, subject: r.quizDoc.data().subject || '—', quiz: r.quizDoc.data().title, score: r.attempt.score, total: r.attempt.total, pct: pct, color: pct >= 70 ? 'green' : pct >= 40 ? 'blue' : 'red', date: r.attempt.date ? new Date(r.attempt.date).toLocaleDateString() : '', id: r.attemptId, autoSubmitted: r.attempt.autoSubmitted || false });
+            filtered.push({ name: uData.name, batch: studentBatch, subject: r.quizDoc.data().subject || '—', quiz: r.quizDoc.data().title, score: r.attempt.score, total: r.attempt.total, pct: pct, color: pct >= 70 ? 'green' : pct >= 40 ? 'blue' : 'red', date: r.attempt.date ? new Date(r.attempt.date).toLocaleDateString() : '', id: r.attemptId });
           }
           if (filtered.length === 0) { document.getElementById('allResults').innerHTML = '<p class="muted center">No results found</p>'; return; }
           var html = '<table><tr><th>Student</th><th>Batch</th><th>Subject</th><th>Quiz</th><th>Score</th><th>Date</th><th></th></tr>';
           for (var i = 0; i < filtered.length; i++) {
             var r = filtered[i];
-            var autoTag = r.autoSubmitted ? ' <span class="badge orange" style="font-size:10px;"><i class="fa-solid fa-clock"></i> Auto</span>' : '';
             html += '<tr><td style="font-weight:500;">' + r.name + '</td>' +
               '<td><span class="badge ' + (r.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (r.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + r.batch + '</span></td>' +
               '<td><span class="badge gray"><i class="fa-solid fa-tag"></i> ' + r.subject + '</span></td>' +
               '<td>' + r.quiz + '</td>' +
-              '<td><span class="badge ' + r.color + '">' + r.score + '/' + r.total + ' (' + r.pct + '%)</span>' + autoTag + '</td>' +
+              '<td><span class="badge ' + r.color + '">' + r.score + '/' + r.total + ' (' + r.pct + '%)</span></td>' +
               '<td style="color:var(--text3);font-size:12.5px;">' + r.date + '</td>' +
               '<td><a class="btn sm gray" href="result.html?id=' + r.id + '"><i class="fa-solid fa-eye"></i> View</a></td></tr>';
           }
