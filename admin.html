@@ -51,7 +51,7 @@
 
     <!-- ADD QUIZ TAB -->
     <div id="addTab" class="tabContent box" style="display:none">
-      <h2><i class="fa-solid fa-plus-circle" style="color:var(--primary);"></i> Create Quiz</h2>
+      <h2 id="addTabTitle"><i class="fa-solid fa-plus-circle" style="color:var(--primary);"></i> Create Quiz</h2>
 
       <div id="quizSetup">
         <div class="form-group">
@@ -75,9 +75,15 @@
           <label><i class="fa-solid fa-file-alt"></i> Quiz Title</label>
           <input id="qTitle" placeholder="e.g. Chapter 1 Test">
         </div>
-        <div class="form-group">
-          <label><i class="fa-solid fa-hashtag"></i> Number of Questions</label>
-          <input id="qCount" type="number" min="1" max="100" placeholder="e.g. 10" style="max-width:200px;">
+        <div class="form-row">
+          <div class="form-group">
+            <label><i class="fa-solid fa-hashtag"></i> Number of Questions</label>
+            <input id="qCount" type="number" min="1" max="100" placeholder="e.g. 10">
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-stopwatch"></i> Time Limit (minutes) <span style="font-weight:400;color:var(--text3);">— 0 or empty = no limit</span></label>
+            <input id="qTimeLimit" type="number" min="0" max="300" placeholder="e.g. 30">
+          </div>
         </div>
         <button class="btn blue" onclick="startAddingQuestions()"><i class="fa-solid fa-arrow-right"></i> Next: Add Questions</button>
       </div>
@@ -88,6 +94,7 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <span class="badge blue" id="setupBatchBadge"></span>
             <span class="badge gray" id="setupSubjectBadge"></span>
+            <span class="badge orange" id="setupTimeBadge" style="display:none;"></span>
             <strong id="setupTitleBadge"></strong>
           </div>
           <button class="btn sm gray" onclick="backToSetup()"><i class="fa-solid fa-arrow-left"></i> Back</button>
@@ -188,7 +195,7 @@
         </h2>
         <p style="color:var(--text2);font-size:13.5px;margin-bottom:16px;">
           <i class="fa-solid fa-info-circle" style="color:var(--info);"></i>
-          This newsfeed is publicly visible on the student dashboard. It shows MCQs that students most commonly get wrong, sorted by error count. Adding <strong>explanations</strong> to questions makes them more educational in the feed.
+          This newsfeed is publicly visible on the student dashboard (filtered by batch) and on the login page (all batches) for visitors. Adding <strong>explanations</strong> to questions makes them more educational in the feed.
         </p>
         <button class="btn blue" onclick="loadNewsfeed('adminNewsfeedPreview'); document.getElementById('adminNewsfeedPreview').style.display='block';">
           <i class="fa-solid fa-rotate"></i> Refresh Newsfeed Preview
@@ -203,7 +210,8 @@
           <li>Ranks them by how many students got each one wrong</li>
           <li>Shows question text, explanation, subject badge, and error count</li>
           <li>Auto-scrolls as a ticker — hovering pauses it</li>
-          <li>Visible to all logged-in students on their dashboard</li>
+          <li><strong>Logged-in students</strong> see only mistakes from their own batch (SSC/HSC)</li>
+          <li><strong>Visitors (not signed in)</strong> see all mistakes from all batches — like a public Facebook-style feed</li>
         </ul>
       </div>
     </div>
@@ -217,8 +225,9 @@
   <script src="app.js"></script>
   <script>
     var allStudents = [], allQuizzes = [], allAccess = [];
-    var quizSetupData = { batch: '', subject: '', title: '', totalQ: 0 };
+    var quizSetupData = { batch: '', subject: '', title: '', totalQ: 0, timeLimit: 0 };
     var quizQuestions = [], currentQIndex = 0;
+    var editingQuizId = null; // Track if we're editing
 
     firebase.auth().onAuthStateChanged(function(u) {
       if (!u) { window.location = 'index.html'; return; }
@@ -241,6 +250,22 @@
       document.getElementById(id).style.display = 'block';
       btn.classList.add('active');
       if (id === 'resultsTab') loadResults();
+      // Reset edit mode when switching to add tab fresh
+      if (id === 'addTab' && !editingQuizId) {
+        resetAddForm();
+      }
+    }
+
+    function resetAddForm() {
+      editingQuizId = null;
+      document.getElementById('addTabTitle').innerHTML = '<i class="fa-solid fa-plus-circle" style="color:var(--primary);"></i> Create Quiz';
+      document.getElementById('saveQuizBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Quiz';
+      document.getElementById('qSubject').value = '';
+      document.getElementById('qTitle').value = '';
+      document.getElementById('qCount').value = '';
+      document.getElementById('qTimeLimit').value = '';
+      document.getElementById('quizSetup').style.display = 'block';
+      document.getElementById('quizQuestions').style.display = 'none';
     }
 
     // ============ QUIZ SETUP ============
@@ -249,17 +274,39 @@
       var subject = document.getElementById('qSubject').value.trim();
       var title = document.getElementById('qTitle').value.trim();
       var count = parseInt(document.getElementById('qCount').value);
+      var timeLimit = parseInt(document.getElementById('qTimeLimit').value) || 0;
       if (!subject) { flash('Enter subject name', false); return; }
       if (!title) { flash('Enter quiz title', false); return; }
       if (!count || count < 1) { flash('Enter valid number of questions', false); return; }
       if (count > 100) { flash('Maximum 100 questions', false); return; }
-      quizSetupData = { batch: batch, subject: subject, title: title, totalQ: count };
-      quizQuestions = []; currentQIndex = 0;
-      for (var i = 0; i < count; i++) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
+      quizSetupData = { batch: batch, subject: subject, title: title, totalQ: count, timeLimit: timeLimit };
+
+      // If not editing or question count changed, reset questions
+      if (!editingQuizId || quizQuestions.length !== count) {
+        if (!editingQuizId) {
+          quizQuestions = [];
+          for (var i = 0; i < count; i++) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
+        } else {
+          // Editing: adjust array size
+          while (quizQuestions.length < count) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
+          if (quizQuestions.length > count) quizQuestions = quizQuestions.slice(0, count);
+        }
+      }
+      currentQIndex = 0;
+
       document.getElementById('setupBatchBadge').innerHTML = '<i class="fa-solid ' + (batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + batch;
       document.getElementById('setupBatchBadge').className = 'badge ' + (batch === 'HSC' ? 'purple' : 'blue');
       document.getElementById('setupSubjectBadge').innerHTML = '<i class="fa-solid fa-book-open"></i> ' + subject;
       document.getElementById('setupTitleBadge').textContent = title;
+
+      // Show time badge
+      if (timeLimit > 0) {
+        document.getElementById('setupTimeBadge').style.display = 'inline-flex';
+        document.getElementById('setupTimeBadge').innerHTML = '<i class="fa-solid fa-stopwatch"></i> ' + timeLimit + ' min';
+      } else {
+        document.getElementById('setupTimeBadge').style.display = 'none';
+      }
+
       document.getElementById('quizSetup').style.display = 'none';
       document.getElementById('quizQuestions').style.display = 'block';
       loadQuestionForm();
@@ -302,6 +349,10 @@
         correct: document.getElementById('cqCorrect').value,
         explanation: document.getElementById('cqExp').value.trim()
       };
+      // Preserve existing ID if editing
+      if (quizQuestions[currentQIndex]._id) {
+        quizQuestions[currentQIndex].id = quizQuestions[currentQIndex]._id;
+      }
     }
 
     function validateCurrentQuestion() {
@@ -352,27 +403,92 @@
       var qs = [];
       for (var i = 0; i < quizQuestions.length; i++) {
         var q = Object.assign({}, quizQuestions[i]);
-        q.id = 'q' + (i + 1) + '_' + Date.now();
+        // Use existing ID or generate new one
+        if (!q.id && !q._id) q.id = 'q' + (i + 1) + '_' + Date.now();
+        if (q._id) { q.id = q._id; delete q._id; }
         qs.push(q);
       }
-      db.collection('quizzes').add({
+
+      var quizData = {
         batch: quizSetupData.batch, subject: quizSetupData.subject, title: quizSetupData.title,
-        questions: qs, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      })
+        questions: qs, timeLimit: quizSetupData.timeLimit || 0
+      };
+
+      var savePromise;
+      if (editingQuizId) {
+        // Update existing quiz
+        quizData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        savePromise = db.collection('quizzes').doc(editingQuizId).update(quizData);
+      } else {
+        // Create new quiz
+        quizData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        savePromise = db.collection('quizzes').add(quizData);
+      }
+
+      savePromise
       .then(function() {
-        flash('Quiz saved successfully!');
+        flash(editingQuizId ? 'Quiz updated successfully!' : 'Quiz saved successfully!');
         btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Quiz';
-        document.getElementById('qSubject').value = '';
-        document.getElementById('qTitle').value = '';
-        document.getElementById('qCount').value = '';
-        document.getElementById('quizSetup').style.display = 'block';
-        document.getElementById('quizQuestions').style.display = 'none';
+        resetAddForm();
+        editingQuizId = null;
         loadAll();
+        // Switch to quizzes tab
+        var quizzesBtn = document.querySelector('.tab');
+        if (quizzesBtn) switchTab('quizzesTab', quizzesBtn);
       })
       .catch(function(e) {
         flash('Error: ' + e.message, false);
         btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Quiz';
       });
+    }
+
+    // ============ EDIT QUIZ ============
+    function editQuiz(id) {
+      var quiz = null;
+      for (var i = 0; i < allQuizzes.length; i++) { if (allQuizzes[i].id === id) { quiz = allQuizzes[i]; break; } }
+      if (!quiz) { flash('Quiz not found', false); return; }
+
+      editingQuizId = id;
+      var q = quiz.data;
+
+      // Fill setup form
+      document.getElementById('addTabTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--warning);"></i> Edit Quiz';
+      var batchRadios = document.querySelectorAll('input[name="qBatch"]');
+      for (var i = 0; i < batchRadios.length; i++) {
+        batchRadios[i].checked = batchRadios[i].value === q.batch;
+      }
+      document.getElementById('qSubject').value = q.subject || '';
+      document.getElementById('qTitle').value = q.title || '';
+      document.getElementById('qCount').value = q.questions.length;
+      document.getElementById('qTimeLimit').value = q.timeLimit || '';
+
+      // Load questions into editor
+      quizQuestions = [];
+      for (var i = 0; i < q.questions.length; i++) {
+        var qn = q.questions[i];
+        quizQuestions.push({
+          text: qn.text || '',
+          a: qn.a || '', b: qn.b || '', c: qn.c || '', d: qn.d || '',
+          correct: qn.correct || 'a',
+          explanation: qn.explanation || '',
+          _id: qn.id // preserve original ID
+        });
+      }
+
+      // Switch to add tab
+      var tabs = document.querySelectorAll('.tabContent');
+      for (var i = 0; i < tabs.length; i++) tabs[i].style.display = 'none';
+      var buttons = document.querySelectorAll('.tab');
+      for (var i = 0; i < buttons.length; i++) buttons[i].classList.remove('active');
+      document.getElementById('addTab').style.display = 'block';
+      buttons[1].classList.add('active'); // Add Quiz tab
+
+      // Show setup form to let admin review/modify before going to questions
+      document.getElementById('quizSetup').style.display = 'block';
+      document.getElementById('quizQuestions').style.display = 'none';
+
+      window.scrollTo(0, 0);
+      flash('Editing quiz: ' + q.title + '. Review settings then click Next.');
     }
 
     // ============ LOAD ALL ============
@@ -409,17 +525,22 @@
         if ((batchF === 'all' || (q.data.batch || '') === batchF) && (subjectF === 'all' || (q.data.subject || '') === subjectF)) filtered.push(q);
       }
       if (filtered.length === 0) { document.getElementById('adminQuizList').innerHTML = '<p class="muted center"><i class="fa-solid fa-inbox"></i> No quizzes found</p>'; return; }
-      var html = '<table><tr><th>Batch</th><th>Subject</th><th>Title</th><th>Questions</th><th>Actions</th></tr>';
+      var html = '<table><tr><th>Batch</th><th>Subject</th><th>Title</th><th>Qs</th><th>Time</th><th>Actions</th></tr>';
       for (var i = 0; i < filtered.length; i++) {
         var q = filtered[i];
         var bc = q.data.batch === 'HSC' ? 'purple' : 'blue';
+        var timeDisplay = q.data.timeLimit ? q.data.timeLimit + ' min' : 'No limit';
         html += '<tr>' +
           '<td><span class="badge ' + bc + '"><i class="fa-solid ' + (q.data.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + (q.data.batch || '—') + '</span></td>' +
           '<td><span class="badge gray"><i class="fa-solid fa-tag"></i> ' + (q.data.subject || '—') + '</span></td>' +
           '<td style="font-weight:500;">' + q.data.title + '</td>' +
           '<td><span style="background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;">' + q.data.questions.length + '</span></td>' +
-          '<td><button class="btn sm blue" onclick="viewQuiz(\'' + q.id + '\')"><i class="fa-solid fa-eye"></i> View</button> ' +
-          '<button class="btn sm red" onclick="delQuiz(\'' + q.id + '\')"><i class="fa-solid fa-trash"></i> Delete</button></td></tr>';
+          '<td><span class="badge ' + (q.data.timeLimit ? 'orange' : 'gray') + '" style="font-size:11px;"><i class="fa-solid fa-stopwatch"></i> ' + timeDisplay + '</span></td>' +
+          '<td>' +
+            '<button class="btn sm blue" onclick="viewQuiz(\'' + q.id + '\')"><i class="fa-solid fa-eye"></i> View</button> ' +
+            '<button class="btn sm orange" onclick="editQuiz(\'' + q.id + '\')"><i class="fa-solid fa-pen-to-square"></i> Edit</button> ' +
+            '<button class="btn sm red" onclick="delQuiz(\'' + q.id + '\')"><i class="fa-solid fa-trash"></i> Delete</button>' +
+          '</td></tr>';
       }
       html += '</table>';
       document.getElementById('adminQuizList').innerHTML = html;
@@ -440,6 +561,7 @@
       html += '<span class="badge ' + (q.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (q.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + (q.batch || '—') + '</span>';
       html += '<span class="badge gray"><i class="fa-solid fa-book-open"></i> ' + (q.subject || '—') + '</span>';
       html += '<span class="badge gray"><i class="fa-solid fa-circle-question"></i> ' + q.questions.length + ' questions</span>';
+      if (q.timeLimit) html += '<span class="badge orange"><i class="fa-solid fa-stopwatch"></i> ' + q.timeLimit + ' min</span>';
       html += '</div><hr>';
       for (var i = 0; i < q.questions.length; i++) {
         var qs = q.questions[i];
@@ -576,17 +698,18 @@
             var uData = r.userDoc.data(), studentBatch = uData.batch || 'SSC';
             if (batchFilter !== 'all' && studentBatch !== batchFilter) continue;
             var pct = Math.round(r.attempt.score / r.attempt.total * 100);
-            filtered.push({ name: uData.name, batch: studentBatch, subject: r.quizDoc.data().subject || '—', quiz: r.quizDoc.data().title, score: r.attempt.score, total: r.attempt.total, pct: pct, color: pct >= 70 ? 'green' : pct >= 40 ? 'blue' : 'red', date: r.attempt.date ? new Date(r.attempt.date).toLocaleDateString() : '', id: r.attemptId });
+            filtered.push({ name: uData.name, batch: studentBatch, subject: r.quizDoc.data().subject || '—', quiz: r.quizDoc.data().title, score: r.attempt.score, total: r.attempt.total, pct: pct, color: pct >= 70 ? 'green' : pct >= 40 ? 'blue' : 'red', date: r.attempt.date ? new Date(r.attempt.date).toLocaleDateString() : '', id: r.attemptId, autoSubmitted: r.attempt.autoSubmitted || false });
           }
           if (filtered.length === 0) { document.getElementById('allResults').innerHTML = '<p class="muted center">No results found</p>'; return; }
           var html = '<table><tr><th>Student</th><th>Batch</th><th>Subject</th><th>Quiz</th><th>Score</th><th>Date</th><th></th></tr>';
           for (var i = 0; i < filtered.length; i++) {
             var r = filtered[i];
+            var autoTag = r.autoSubmitted ? ' <span class="badge orange" style="font-size:10px;"><i class="fa-solid fa-clock"></i> Auto</span>' : '';
             html += '<tr><td style="font-weight:500;">' + r.name + '</td>' +
               '<td><span class="badge ' + (r.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (r.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + r.batch + '</span></td>' +
               '<td><span class="badge gray"><i class="fa-solid fa-tag"></i> ' + r.subject + '</span></td>' +
               '<td>' + r.quiz + '</td>' +
-              '<td><span class="badge ' + r.color + '">' + r.score + '/' + r.total + ' (' + r.pct + '%)</span></td>' +
+              '<td><span class="badge ' + r.color + '">' + r.score + '/' + r.total + ' (' + r.pct + '%)</span>' + autoTag + '</td>' +
               '<td style="color:var(--text3);font-size:12.5px;">' + r.date + '</td>' +
               '<td><a class="btn sm gray" href="result.html?id=' + r.id + '"><i class="fa-solid fa-eye"></i> View</a></td></tr>';
           }
@@ -597,4 +720,4 @@
     }
   </script>
 </body>
-              </html>
+  </html>
