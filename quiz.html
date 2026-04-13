@@ -30,6 +30,7 @@
           <div id="qzTimer" style="font-size:1.5em;font-weight:700;color:var(--primary);font-family:'Sora',sans-serif;display:flex;align-items:center;gap:6px;justify-content:flex-end;">
             <i class="fa-regular fa-clock"></i> <span id="qzTimerText">00:00</span>
           </div>
+          <div id="qzTimerLabel" style="font-size:11px;color:var(--text3);margin-top:2px;"></div>
           <div id="qzAnswered" style="color:var(--text3);font-size:12.5px;margin-top:4px;"></div>
         </div>
       </div>
@@ -58,7 +59,10 @@
   <script src="app.js"></script>
   <script>
     var quizId = new URLSearchParams(window.location.search).get('id');
-    var quiz = null, page = 1, perPage = 10, answers = {}, timerSeconds = 0, timerInterval = null;
+    var quiz = null, page = 1, perPage = 10, answers = {};
+    var timerSeconds = 0, timerInterval = null;
+    var hasTimeLimit = false, timeLimitSeconds = 0, remainingSeconds = 0;
+    var autoSubmitted = false;
 
     if (!quizId) {
       document.getElementById('loading').innerHTML = '<p style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> No quiz ID found</p>';
@@ -96,11 +100,20 @@
           var badgesHtml = '';
           if (quiz.batch) badgesHtml += '<span class="badge ' + (quiz.batch === 'HSC' ? 'purple' : 'blue') + '"><i class="fa-solid ' + (quiz.batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + quiz.batch + '</span>';
           if (quiz.subject) badgesHtml += '<span class="badge gray"><i class="fa-solid fa-book-open"></i> ' + quiz.subject + '</span>';
+
+          // Show time limit badge
+          if (quiz.timeLimit && quiz.timeLimit > 0) {
+            hasTimeLimit = true;
+            timeLimitSeconds = quiz.timeLimit * 60;
+            badgesHtml += '<span class="badge orange"><i class="fa-solid fa-stopwatch"></i> ' + quiz.timeLimit + ' min time limit</span>';
+          }
           document.getElementById('qzBadges').innerHTML = badgesHtml;
+
           var saved = localStorage.getItem('ans_' + quizId);
           if (saved) { try { answers = JSON.parse(saved); } catch(e) { answers = {}; } }
           var savedTime = localStorage.getItem('timer_' + quizId);
           if (savedTime) timerSeconds = parseInt(savedTime) || 0;
+
           document.getElementById('loading').style.display = 'none';
           document.getElementById('quizArea').style.display = 'block';
           startTimer(); renderPage();
@@ -117,11 +130,44 @@
         timerSeconds++;
         localStorage.setItem('timer_' + quizId, timerSeconds);
         updateTimerDisplay();
+
+        // Auto-submit when time runs out
+        if (hasTimeLimit) {
+          remainingSeconds = timeLimitSeconds - timerSeconds;
+          if (remainingSeconds <= 0 && !autoSubmitted) {
+            autoSubmitted = true;
+            stopTimer();
+            flash('Time is up! Auto-submitting your quiz...', false);
+            setTimeout(function() { forceSubmitQuiz(); }, 1000);
+          }
+        }
       }, 1000);
     }
+
     function updateTimerDisplay() {
-      var mins = Math.floor(timerSeconds / 60), secs = timerSeconds % 60;
-      document.getElementById('qzTimerText').textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+      if (hasTimeLimit) {
+        remainingSeconds = timeLimitSeconds - timerSeconds;
+        if (remainingSeconds < 0) remainingSeconds = 0;
+        var mins = Math.floor(remainingSeconds / 60), secs = remainingSeconds % 60;
+        document.getElementById('qzTimerText').textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+        document.getElementById('qzTimerLabel').textContent = 'Time remaining';
+
+        // Change color when low on time
+        var timerEl = document.getElementById('qzTimer');
+        if (remainingSeconds <= 60) {
+          timerEl.style.color = 'var(--danger)';
+          timerEl.style.animation = 'pulse 1s infinite';
+        } else if (remainingSeconds <= 300) {
+          timerEl.style.color = 'var(--warning)';
+        } else {
+          timerEl.style.color = 'var(--primary)';
+        }
+      } else {
+        // Count-up timer (no limit)
+        var mins = Math.floor(timerSeconds / 60), secs = timerSeconds % 60;
+        document.getElementById('qzTimerText').textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+        document.getElementById('qzTimerLabel').textContent = 'Elapsed time';
+      }
     }
     function stopTimer() { if (timerInterval) clearInterval(timerInterval); }
 
@@ -203,6 +249,27 @@
       renderPage();
     }
     function goPage(p) { page = p; renderPage(); window.scrollTo(0, 0); }
+
+    // Force submit (auto-submit on time up)
+    function forceSubmitQuiz() {
+      stopTimer();
+      var uid = firebase.auth().currentUser.uid;
+      var score = 0;
+      for (var i = 0; i < quiz.questions.length; i++) {
+        if (answers[quiz.questions[i].id] === quiz.questions[i].correct) score++;
+      }
+      db.collection('attempts').add({
+        userId: uid, quizId: quizId, answers: answers, score: score,
+        total: quiz.questions.length, timeTaken: timerSeconds,
+        autoSubmitted: true, date: new Date().toISOString()
+      })
+      .then(function(ref) {
+        localStorage.removeItem('ans_' + quizId);
+        localStorage.removeItem('timer_' + quizId);
+        window.location.href = 'result.html?id=' + ref.id;
+      })
+      .catch(function(e) { alert('Error submitting: ' + e.message); });
+    }
 
     function submitQuiz() {
       var total = quiz.questions.length;
