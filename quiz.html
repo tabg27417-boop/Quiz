@@ -27,6 +27,9 @@
     <div class="box">
       <h2 id="qzTitle"></h2>
 
+      <!-- SUBJECT + TOPIC -->
+      <div id="qzMeta" style="margin-top:6px;color:var(--text3);font-size:13px;"></div>
+
       <div id="qzTimer" style="font-size:20px;font-weight:700;color:var(--primary);margin-top:10px;">
         ⏱ <span id="qzTimerText">00:00</span>
       </div>
@@ -63,24 +66,44 @@
     var quizId = new URLSearchParams(location.search).get('id');
     var quiz = null;
     var answers = {};
-    var page = 1;
-    var perPage = 10;
+    var timer = null;
 
     var countdown = 0;
     var isCountdown = false;
-    var timer = null;
 
-    // LOAD
     firebase.auth().onAuthStateChanged(function(u){
       if(!u) location.href="index.html";
-      else loadQuiz(u);
+      else checkAccess(u);
     });
 
+    // 🔥 STEP 1: CHECK ALREADY SUBMITTED (LOCK SYSTEM)
+    function checkAccess(u){
+
+      db.collection("userQuizStatus")
+        .doc(u.uid + "_" + quizId)
+        .get()
+        .then(function(lockDoc){
+
+          if(lockDoc.exists && lockDoc.data().done){
+            location.href = "result.html?id=" + lockDoc.data().attemptId;
+            return;
+          }
+
+          loadQuiz(u);
+        });
+    }
+
+    // LOAD QUIZ
     function loadQuiz(u){
       db.collection("quizzes").doc(quizId).get().then(function(doc){
         quiz = doc.data();
 
         document.getElementById("qzTitle").innerText = quiz.title;
+
+        // SUBJECT + TOPIC
+        document.getElementById("qzMeta").innerHTML =
+          (quiz.subject ? "📘 Subject: " + quiz.subject : "") +
+          (quiz.topic ? " • 📚 Topic: " + quiz.topic : "");
 
         if(quiz.timeLimit){
           isCountdown = true;
@@ -98,7 +121,6 @@
     // TIMER
     function startTimer(){
       timer = setInterval(function(){
-
         if(isCountdown){
           countdown--;
           if(countdown<=0){
@@ -128,14 +150,19 @@
 
       for(var i=0;i<quiz.questions.length;i++){
         var q = quiz.questions[i];
+        var locked = answers[q.id] !== undefined;
 
         html += '<div class="q-block">';
         html += '<h4>Q'+(i+1)+'. '+q.text+'</h4>';
 
         ['a','b','c','d'].forEach(function(o){
+
+          var disabled = locked ? "pointer-events:none;opacity:0.6;" : "";
+          var checked = answers[q.id]===o ? "checked" : "";
+
           html += `
-          <div class="radio-opt" onclick="pick('${q.id}','${o}',this)">
-            <input type="radio" name="${q.id}">
+          <div class="radio-opt" style="${disabled}" onclick="pick('${q.id}','${o}',this)">
+            <input type="radio" name="${q.id}" ${checked} ${locked ? "disabled" : ""}>
             <span>${o.toUpperCase()}. ${q[o]}</span>
           </div>`;
         });
@@ -144,20 +171,20 @@
       }
 
       document.getElementById("qzQuestions").innerHTML = html;
-
       updateSubmit();
     }
 
-    // PICK ANSWER
-    function pick(qid,val,el){
-      answers[qid]=val;
-      el.querySelector("input").checked=true;
+    // PICK (LOCK AFTER FIRST CLICK)
+    function pick(qid,val){
+      if(answers[qid]) return;
+
+      answers[qid] = val;
       updateSubmit();
+      render();
     }
 
-    // UPDATE SUBMIT BUTTON
+    // UPDATE UI
     function updateSubmit(){
-      var totalPages = Math.ceil(quiz.questions.length/perPage);
 
       document.getElementById("qzAnswered").innerText =
         Object.keys(answers).length + " answered";
@@ -170,28 +197,38 @@
         '<i class="fa-solid fa-paper-plane"></i> Submit Quiz</button>';
     }
 
-    // SUBMIT
+    // SUBMIT + LOCK SAVE
     function submitQuiz(){
       clearInterval(timer);
 
       var uid = firebase.auth().currentUser.uid;
-      var score=0;
+      var score = 0;
 
       for(var i=0;i<quiz.questions.length;i++){
-        if(answers[quiz.questions[i].id]===quiz.questions[i].correct){
+        if(answers[quiz.questions[i].id] === quiz.questions[i].correct){
           score++;
         }
       }
 
       db.collection("attempts").add({
-        userId:uid,
-        quizId:quizId,
-        answers:answers,
-        score:score,
-        total:quiz.questions.length,
-        date:new Date().toISOString()
+        userId: uid,
+        quizId: quizId,
+        answers: answers,
+        score: score,
+        total: quiz.questions.length,
+        date: new Date().toISOString()
       }).then(function(ref){
-        location.href="result.html?id="+ref.id;
+
+        // 🔥 SAVE LOCK (IMPORTANT)
+        db.collection("userQuizStatus")
+          .doc(uid + "_" + quizId)
+          .set({
+            done: true,
+            attemptId: ref.id,
+            time: new Date()
+          });
+
+        location.href = "result.html?id=" + ref.id;
       });
     }
 
