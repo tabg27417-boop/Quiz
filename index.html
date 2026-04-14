@@ -310,29 +310,45 @@
     }
 
     function loadStudentQuizzes(uid, batch) {
-      db.collection('access').where('userId', '==', uid).get()
-        .then(function(accessSnap) {
+      Promise.all([
+        db.collection('access').where('userId', '==', uid).get(),
+        db.collection('attempts').where('userId', '==', uid).get(),
+        db.collection('quizzes').where('isPublic', '==', true).where('batch', '==', batch).get()
+      ])
+        .then(function(results) {
+          var accessSnap = results[0], attemptSnap = results[1], publicSnap = results[2];
+
           var accessQuizIds = [];
           accessSnap.docs.forEach(function(d) { accessQuizIds.push(d.data().quizId); });
-          return db.collection('attempts').where('userId', '==', uid).get()
-            .then(function(attemptSnap) {
-              var attempted = {};
-              attemptSnap.docs.forEach(function(d) {
-                var ad = d.data();
-                attempted[ad.quizId] = { id: d.id, score: ad.score, total: ad.total };
-              });
-              return { accessQuizIds: accessQuizIds, attempted: attempted };
-            });
-        })
-        .then(function(result) {
-          var accessQuizIds = result.accessQuizIds;
-          var attempted = result.attempted;
-          if (accessQuizIds.length === 0) {
+
+          var attempted = {};
+          attemptSnap.docs.forEach(function(d) {
+            var ad = d.data();
+            attempted[ad.quizId] = { id: d.id, score: ad.score, total: ad.total };
+          });
+
+          // Merge: private (access-granted) + public quizzes, deduplicated
+          var quizIdSet = {};
+          accessQuizIds.forEach(function(id) { quizIdSet[id] = true; });
+          publicSnap.docs.forEach(function(d) { quizIdSet[d.id] = true; });
+          var allQuizIds = Object.keys(quizIdSet);
+
+          if (allQuizIds.length === 0) {
             document.getElementById('quizList').innerHTML = '<p class="muted center"><i class="fa-solid fa-inbox" style="font-size:24px;display:block;margin-bottom:8px;"></i>No quizzes assigned yet.</p>';
             updateStats(0, 0, 0, []); return;
           }
-          var promises = accessQuizIds.map(function(qid) { return db.collection('quizzes').doc(qid).get(); });
-          return Promise.all(promises).then(function(quizDocs) {
+
+          // Build a map from public docs already fetched
+          var fetchedDocs = {};
+          publicSnap.docs.forEach(function(d) { fetchedDocs[d.id] = d; });
+
+          // Fetch only the private quiz docs not already fetched
+          var privateIds = accessQuizIds.filter(function(id) { return !fetchedDocs[id]; });
+          var fetchPromises = privateIds.map(function(qid) { return db.collection('quizzes').doc(qid).get(); });
+
+          return Promise.all(fetchPromises).then(function(privateDocs) {
+            privateDocs.forEach(function(d) { if (d.exists) fetchedDocs[d.id] = d; });
+
             var html = '<table><tr>' +
               '<th><i class="fa-solid fa-book"></i> Subject</th>' +
               '<th><i class="fa-solid fa-file-alt"></i> Quiz</th>' +
@@ -341,18 +357,24 @@
               '<th><i class="fa-solid fa-flag"></i> Status</th>' +
               '<th></th></tr>';
             var total = 0, done = 0, scores = [];
-            for (var i = 0; i < quizDocs.length; i++) {
-              var qDoc = quizDocs[i];
-              if (!qDoc.exists) continue;
-              var q = qDoc.data(); var qid = qDoc.id;
-              if (q.batch && q.batch !== batch) continue;
+
+            allQuizIds.forEach(function(qid) {
+              var qDoc = fetchedDocs[qid];
+              if (!qDoc || !qDoc.exists) return;
+              var q = qDoc.data();
+              if (q.batch && q.batch !== batch) return;
               total++;
               var att = attempted[qid];
               if (att) { done++; scores.push(Math.round((att.score / att.total) * 100)); }
-              var timeLimitStr = q.timeLimit ? '<span style="background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;"><i class="fa-regular fa-clock"></i> ' + q.timeLimit + 'm</span>' : '<span style="color:var(--text3);font-size:12px;">No limit</span>';
+              var timeLimitStr = q.timeLimit
+                ? '<span style="background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;"><i class="fa-regular fa-clock"></i> ' + q.timeLimit + 'm</span>'
+                : '<span style="color:var(--text3);font-size:12px;">No limit</span>';
+              var publicBadge = q.isPublic
+                ? '<span class="badge green" style="font-size:10px;margin-left:4px;"><i class="fa-solid fa-globe"></i> Public</span>'
+                : '';
               html += '<tr>' +
                 '<td><span class="badge gray"><i class="fa-solid fa-tag"></i> ' + (q.subject || '—') + '</span></td>' +
-                '<td style="font-weight:500;">' + q.title + '</td>' +
+                '<td style="font-weight:500;">' + q.title + publicBadge + '</td>' +
                 '<td><span style="background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;">' + q.questions.length + '</span></td>' +
                 '<td>' + timeLimitStr + '</td>' +
                 '<td>' + (att
@@ -361,7 +383,8 @@
                 '<td>' + (att
                   ? '<a class="btn sm gray" href="result.html?id=' + att.id + '"><i class="fa-solid fa-chart-bar"></i> Result</a>'
                   : '<a class="btn sm blue" href="quiz.html?id=' + qid + '"><i class="fa-solid fa-play"></i> Start</a>') + '</td></tr>';
-            }
+            });
+
             if (total === 0) {
               document.getElementById('quizList').innerHTML = '<p class="muted center">No quizzes for your batch yet.</p>';
               updateStats(0, 0, 0, []); return;
