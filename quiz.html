@@ -77,6 +77,38 @@
     // Countdown timer (for timed quizzes)
     var countdownSeconds = 0, isCountdown = false, countdownInterval = null;
 
+    // ===================================================================
+    // FIX FOR BACK-BUTTON / BFCACHE ISSUE
+    // This prevents users from editing answers after submission or time-up
+    // by instantly redirecting them back to the result page when they
+    // use the browser back button (which restores the page from bfcache).
+    // ===================================================================
+    window.addEventListener('pageshow', function(event) {
+      if (event.persisted && quizId) {
+        // 1. Fast path: if we saved the attempt ID in localStorage during submit,
+        //    redirect immediately (no network call, no chance to edit anything)
+        var savedAttemptId = localStorage.getItem('attempt_' + quizId);
+        if (savedAttemptId) {
+          window.location.href = 'result.html?id=' + savedAttemptId;
+          return;
+        }
+
+        // 2. Fallback (very rare): query Firestore in case localStorage was cleared
+        var uid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+        if (uid) {
+          db.collection('attempts')
+            .where('userId', '==', uid)
+            .where('quizId', '==', quizId)
+            .get()
+            .then(function(att) {
+              if (!att.empty) {
+                window.location.href = 'result.html?id=' + att.docs[0].id;
+              }
+            });
+        }
+      }
+    });
+
     if (!quizId) {
       document.getElementById('loading').innerHTML = '<p style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> No quiz ID found</p>';
     } else {
@@ -251,6 +283,7 @@
         localStorage.removeItem('ans_' + quizId);
         localStorage.removeItem('countdown_' + quizId);
         localStorage.removeItem('timer_' + quizId);
+        localStorage.setItem('attempt_' + quizId, ref.id);   // ← NEW: save attempt ID for back-button protection
         window.location.href = 'result.html?id=' + ref.id;
       })
       .catch(function(e) {
@@ -363,6 +396,7 @@
         localStorage.removeItem('ans_' + quizId);
         localStorage.removeItem('countdown_' + quizId);
         localStorage.removeItem('timer_' + quizId);
+        localStorage.setItem('attempt_' + quizId, ref.id);   // ← NEW: save attempt ID for back-button protection
         window.location.href = 'result.html?id=' + ref.id;
       })
       .catch(function(e) { alert('Error submitting: ' + e.message); startTimer(); });
