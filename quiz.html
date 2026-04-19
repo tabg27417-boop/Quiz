@@ -78,6 +78,20 @@
     // ====================== ANTI-DUPLICATE FLAG ======================
     let isSubmitting = false;   // Prevents double submission
 
+    // ====================== BACK NAVIGATION LOCK ======================
+    var quizActive = false;
+
+    function activateNavLock() {
+      quizActive = true;
+      history.pushState({ quizLocked: true }, '');
+    }
+
+    // Back button → auto-submit immediately, no dialog
+    window.addEventListener('popstate', function(e) {
+      if (!quizActive || isSubmitting) return;
+      autoSubmitQuiz();
+    });
+
     // ===================================================================
     // FIX FOR BACK-BUTTON / BFCACHE ISSUE
     // ===================================================================
@@ -199,6 +213,7 @@
           document.getElementById('quizArea').style.display = 'block';
           startTimer();
           renderPage();
+          activateNavLock();
         })
         .catch(function(e) {
           if (e.message === 'NO_ACCESS' || e.message === 'ALREADY_DONE' || e.message === 'NOT_FOUND') return;
@@ -298,6 +313,7 @@
         localStorage.removeItem('countdown_' + quizId);
         localStorage.removeItem('timer_' + quizId);
         localStorage.setItem('attempt_' + quizId, ref.id);
+        quizActive = false;   // Unlock navigation before redirecting
         window.location.href = 'result.html?id=' + ref.id;
       })
       .catch(function(e) {
@@ -342,6 +358,11 @@
         html += `<strong style="flex:1;">${q.text}</strong>`;
         if (isA) html += `<span class="badge green" style="font-size:11px;"><i class="fa-solid fa-check"></i> Answered</span>`;
         html += `</div>`;
+        if (q.imageUrl && q.imageUrl.trim()) {
+          html += `<div style="margin-bottom:12px;">`;
+          html += `<img src="${q.imageUrl.trim()}" alt="Question image" style="max-width:100%;max-height:320px;border-radius:8px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;" onerror="this.style.display='none'">`;
+          html += `</div>`;
+        }
 
         var opts = ['a', 'b', 'c', 'd'];
         for (var j = 0; j < opts.length; j++) {
@@ -447,7 +468,7 @@
         localStorage.removeItem('countdown_' + quizId);
         localStorage.removeItem('timer_' + quizId);
         localStorage.setItem('attempt_' + quizId, ref.id);
-
+        quizActive = false;   // Unlock navigation before redirecting
         setTimeout(() => {
           window.location.href = 'result.html?id=' + ref.id;
         }, 800);
