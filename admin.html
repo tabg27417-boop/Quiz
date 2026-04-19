@@ -178,6 +178,17 @@
             <label><i class="fa-solid fa-lightbulb" style="color:var(--warning);"></i> Explanation <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
             <textarea id="cqExp" placeholder="Explanation shown after submit — also appears in the public newsfeed" rows="2"></textarea>
           </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-image" style="color:var(--info);"></i> Image URL <span style="font-weight:400;color:var(--text3);">(optional — imgbb link)</span></label>
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <input id="cqImg" placeholder="https://i.ibb.co/..." style="flex:1;" oninput="previewAddImg(this.value)">
+              <button type="button" class="btn sm gray" onclick="document.getElementById('cqImg').value='';previewAddImg('');" title="Clear image"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="cqImgPreview" style="margin-top:8px;display:none;">
+              <img id="cqImgPreviewImg" src="" alt="Preview" style="max-width:100%;max-height:180px;border-radius:8px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;"><i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Image preview</div>
+            </div>
+          </div>
         </div>
 
         <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
@@ -351,6 +362,42 @@
     var quizSetupData = { batch: '', subject: '', title: '', totalQ: 0, timeLimit: 0, isPublic: false };
     var quizQuestions = [], currentQIndex = 0;
 
+    // ============ IMAGE PREVIEW (ADD QUIZ) ============
+    function previewAddImg(url) {
+      var wrap = document.getElementById('cqImgPreview');
+      var img = document.getElementById('cqImgPreviewImg');
+      if (url && url.trim()) {
+        img.src = url.trim();
+        wrap.style.display = 'block';
+        img.onerror = function() { wrap.style.display = 'none'; };
+        img.onload = function() { wrap.style.display = 'block'; };
+      } else {
+        wrap.style.display = 'none';
+        img.src = '';
+      }
+    }
+
+    function previewEditImg(inputEl, idx) {
+      var url = inputEl.value.trim();
+      var wrap = document.getElementById('editImgPreview_' + idx);
+      var img = document.getElementById('editImgPreviewImg_' + idx);
+      if (!wrap || !img) return;
+      if (url) {
+        img.src = url;
+        wrap.style.display = 'block';
+        img.onerror = function() { wrap.style.display = 'none'; };
+        img.onload = function() { wrap.style.display = 'block'; };
+      } else {
+        wrap.style.display = 'none';
+        img.src = '';
+      }
+    }
+
+    function clearEditImg(idx) {
+      var input = document.querySelector('.eq-img[data-idx="' + idx + '"]');
+      if (input) { input.value = ''; previewEditImg(input, idx); }
+    }
+
     // ============ VISIBILITY PREVIEW ============
     function updateVisibilityPreview() {
       var isPublic = document.querySelector('input[name="qVisibility"]:checked').value === 'public';
@@ -440,7 +487,7 @@
       if (count > 100) { flash('Maximum 100 questions', false); return; }
       quizSetupData = { batch: batch, subject: subject, title: title, totalQ: count, timeLimit: timeLimit, isPublic: isPublic };
       quizQuestions = []; currentQIndex = 0;
-      for (var i = 0; i < count; i++) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '' });
+      for (var i = 0; i < count; i++) quizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '', imageUrl: '' });
       document.getElementById('setupBatchBadge').innerHTML = '<i class="fa-solid ' + (batch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + batch;
       document.getElementById('setupBatchBadge').className = 'badge ' + (batch === 'HSC' ? 'purple' : 'blue');
       document.getElementById('setupSubjectBadge').innerHTML = '<i class="fa-solid fa-book-open"></i> ' + subject;
@@ -476,6 +523,8 @@
       document.getElementById('cqD').value = q.d;
       document.getElementById('cqCorrect').value = q.correct;
       document.getElementById('cqExp').value = q.explanation;
+      document.getElementById('cqImg').value = q.imageUrl || '';
+      previewAddImg(q.imageUrl || '');
       var filled = 0;
       for (var i = 0; i < quizQuestions.length; i++) { if (quizQuestions[i].text.trim()) filled++; }
       var pct = Math.round((filled / total) * 100);
@@ -495,7 +544,8 @@
         c: document.getElementById('cqC').value.trim(),
         d: document.getElementById('cqD').value.trim(),
         correct: document.getElementById('cqCorrect').value,
-        explanation: document.getElementById('cqExp').value.trim()
+        explanation: document.getElementById('cqExp').value.trim(),
+        imageUrl: document.getElementById('cqImg').value.trim()
       };
     }
 
@@ -700,6 +750,15 @@
         html += '</select></div>';
         html += '<div class="form-group"><label><i class="fa-solid fa-lightbulb" style="color:var(--warning);"></i> Explanation <span style="font-weight:400;color:var(--text3);">(optional)</span></label>';
         html += '<textarea class="eq-exp" data-idx="' + i + '" rows="2" style="width:100%;box-sizing:border-box;">' + escHtml(q.explanation || '') + '</textarea></div>';
+        html += '<div class="form-group"><label><i class="fa-solid fa-image" style="color:var(--info);"></i> Image URL <span style="font-weight:400;color:var(--text3);">(optional — imgbb link)</span></label>';
+        html += '<div style="display:flex;gap:8px;align-items:flex-start;">';
+        html += '<input class="eq-img" data-idx="' + i + '" value="' + escHtml(q.imageUrl || '') + '" placeholder="https://i.ibb.co/..." style="flex:1;" oninput="previewEditImg(this,' + i + ')">';
+        html += '<button type="button" class="btn sm gray" onclick="clearEditImg(' + i + ')" title="Clear"><i class="fa-solid fa-xmark"></i></button>';
+        html += '</div>';
+        html += '<div id="editImgPreview_' + i + '" style="margin-top:8px;' + (q.imageUrl ? '' : 'display:none;') + '">';
+        html += '<img id="editImgPreviewImg_' + i + '" src="' + escHtml(q.imageUrl || '') + '" alt="Preview" style="max-width:100%;max-height:160px;border-radius:8px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.08);">';
+        html += '<div style="font-size:11px;color:var(--text3);margin-top:4px;"><i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Image preview</div>';
+        html += '</div></div>';
         html += '</div>';
       }
       container.innerHTML = html;
@@ -714,15 +773,17 @@
       var opts = document.querySelectorAll('.eq-opt');
       var corrects = document.querySelectorAll('.eq-correct');
       var exps = document.querySelectorAll('.eq-exp');
+      var imgs = document.querySelectorAll('.eq-img');
       texts.forEach(function(el) { editQuizQuestions[el.dataset.idx].text = el.value.trim(); });
       opts.forEach(function(el) { editQuizQuestions[el.dataset.idx][el.dataset.opt] = el.value.trim(); });
       corrects.forEach(function(el) { editQuizQuestions[el.dataset.idx].correct = el.value; });
       exps.forEach(function(el) { editQuizQuestions[el.dataset.idx].explanation = el.value.trim(); });
+      imgs.forEach(function(el) { editQuizQuestions[el.dataset.idx].imageUrl = el.value.trim(); });
     }
 
     function addEditQuestion() {
       collectEditQuestions();
-      editQuizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '', id: 'q' + Date.now() });
+      editQuizQuestions.push({ text: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '', imageUrl: '', id: 'q' + Date.now() });
       renderEditQuestions();
       var container = document.getElementById('editQuestionsContainer');
       container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -928,4 +989,4 @@
     }
   </script>
 </body>
-  </html>
+                </html>
