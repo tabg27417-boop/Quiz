@@ -434,7 +434,7 @@ st.markdown('<div class="input-card"><div class="input-card-title">🎯 Ask Your
 
 question = st.text_area(
     "Your Question",
-    placeholder="e.g. দুটি বিন্দুর মধ্যে দূরত্ব নির্ণয়ের সূত্র কী? / Explain Newton's 3rd law with examples…",
+    placeholder="কোন কুইজে সমস্যা???",
     height=130,
     label_visibility="visible"
 )
