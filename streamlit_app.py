@@ -390,7 +390,10 @@ footer { display: none !important; }
 """, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
-
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "answer" not in st.session_state:
+    st.session_state.answer = None
 
 # ── Hero Header ───────────────────────────────────────────────────────────────
 st.markdown("""
@@ -428,9 +431,10 @@ st.markdown("""
 
 
 
+
 question = st.text_area(
     "Your Question",
-    placeholder="কোন কুইজে সমস্যা???",
+    placeholder="কোন কুইজে সমস্যা??",
     height=130,
     label_visibility="visible"
 )
@@ -497,12 +501,31 @@ if st.button("⚡ Solve My Doubt", use_container_width=True):
         st.warning("Please type your question first.")
 
 # ── Answer Card ───────────────────────────────────────────────────────────────
+if st.session_state.answer:
+    st.markdown('<div class="answer-card"><div class="answer-tag">AI Answer</div>', unsafe_allow_html=True)
+    st.markdown(st.session_state.answer)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Spacer ────────────────────────────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Recent History ────────────────────────────────────────────────────────────
-
+if st.session_state.history:
+    with st.expander("📚 Recent Questions"):
+        for item in st.session_state.history[:6]:
+            icon = {"Mathematics": "🔢", "Physics": "⚛️", "Chemistry": "🧪",
+                    "Biology": "🧬", "History": "📜", "Geography": "🌍",
+                    "English Literature": "📖", "Computer Science": "💻",
+                    "Economics": "📊", "Bangla": "বা"}.get(item["subject"], "❓")
+            st.markdown(f"""
+            <div class="history-item">
+                <div class="history-icon">{icon}</div>
+                <div>
+                    <div class="history-text">{item["q"]}</div>
+                    <div class="history-meta">{item["subject"]} · {item["level"]}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("""
