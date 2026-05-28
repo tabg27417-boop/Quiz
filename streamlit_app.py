@@ -428,7 +428,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Input Card ────────────────────────────────────────────────────────────────
-st.markdown('<div class="input-card"><div class="input-card-title">🎯 Ask Your Doubt</div>', unsafe_allow_html=True)
 
 
 
@@ -510,28 +509,13 @@ if st.session_state.answer:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Recent History ────────────────────────────────────────────────────────────
-if st.session_state.history:
-    with st.expander("📚 Recent Questions"):
-        for item in st.session_state.history[:6]:
-            icon = {"Mathematics": "🔢", "Physics": "⚛️", "Chemistry": "🧪",
-                    "Biology": "🧬", "History": "📜", "Geography": "🌍",
-                    "English Literature": "📖", "Computer Science": "💻",
-                    "Economics": "📊", "Bangla": "বা"}.get(item["subject"], "❓")
-            st.markdown(f"""
-            <div class="history-item">
-                <div class="history-icon">{icon}</div>
-                <div>
-                    <div class="history-text">{item["q"]}</div>
-                    <div class="history-meta">{item["subject"]} · {item["level"]}</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <br><br>
 <div style="text-align:center; font-family:'Space Mono',monospace; font-size:11px;
             color:#2a2740; letter-spacing:0.12em; padding-bottom:40px;">
-    QUIZVAI · AI DOUBT SOLVER · BUILT WITH ❤️
+    QUIZVAI · AI DOUBT SOLVER · BUILT By ABIDUR RAHAMAN 
 </div>
 """, unsafe_allow_html=True)
