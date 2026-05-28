@@ -497,10 +497,6 @@ if st.button("⚡ Solve My Doubt", use_container_width=True):
         st.warning("Please type your question first.")
 
 # ── Answer Card ───────────────────────────────────────────────────────────────
-if st.session_state.answer:
-    st.markdown('<div class="answer-card"><div class="answer-tag">AI Answer</div>', unsafe_allow_html=True)
-    st.markdown(st.session_state.answer)
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Spacer ────────────────────────────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
