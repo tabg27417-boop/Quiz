@@ -390,10 +390,7 @@ footer { display: none !important; }
 """, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
-if "history" not in st.session_state:
-    st.session_state.history = []
-if "answer" not in st.session_state:
-    st.session_state.answer = None
+
 
 # ── Hero Header ───────────────────────────────────────────────────────────────
 st.markdown("""
@@ -515,7 +512,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("""
 <br><br>
 <div style="text-align:center; font-family:'Space Mono',monospace; font-size:11px;
-            color:#2a2740; letter-spacing:0.12em; padding-bottom:40px;">
+            color:cyan; letter-spacing:0.12em; padding-bottom:40px;">
     QUIZVAI · AI DOUBT SOLVER · BUILT By ABIDUR RAHAMAN 
 </div>
 """, unsafe_allow_html=True)
