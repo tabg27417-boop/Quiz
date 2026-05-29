@@ -336,7 +336,18 @@ def get_answer(question: str) -> str:
     except Exception:
         pass
 
-    # 3. OpenRouter fallback
+    #3. openrouter
+    try:
+        return ask_openrouter(question, "liquid/lfm-2.5-1.2b-instruct:free")
+    except Exception:
+        pass
+    #4 openrouter
+    try:
+        return ask_openrouter(question, "poolside/laguna-m.1:free")
+    except Exception:
+        pass
+
+    # 5. OpenRouter fallback
     try:
         return ask_openrouter(question, "poolside/laguna-xs.2:free")
     except Exception as e:
