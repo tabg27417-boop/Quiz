@@ -448,7 +448,7 @@ from google.genai import types
 from google import genai
 
 load_dotenv()
-GEMINI_API=os.getenv("GEMINI_API")
+GEMINI_API=st.secrets["GEMINI_API"]
 
 client = genai.Client(api_key=GEMINI_API)
 
