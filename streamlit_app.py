@@ -1,537 +1,417 @@
+import requests
+import json
+import os
+from dotenv import load_dotenv
+load_dotenv()
 import streamlit as st
-# ── Page config ──────────────────────────────────────────────────────────────
+import firebase_admin
+from firebase_admin import credentials, firestore
+from google import genai
+
+# ─── Page Config ────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="QuizVai – AI Doubt Solver",
-    page_icon="⚡",
-    layout="wide",
+    page_title="QuizVai AI",
+    page_icon="🧠",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
+# ─── Custom CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
 
-/* ── Reset & Base ── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #0b0f1a;
+    --surface:  #131929;
+    --border:   #1e2d45;
+    --accent:   #38bdf8;
+    --accent2:  #818cf8;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --success:  #34d399;
+    --error:    #f87171;
+  }
 
-html, body, [data-testid="stAppViewContainer"] {
-    background: #0A0A0F !important;
-    color: #E8E4D9 !important;
-    font-family: 'Syne', sans-serif !important;
-}
+  /* ── Base ── */
+  html, body, [data-testid="stAppViewContainer"] {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+    font-family: 'DM Mono', monospace !important;
+  }
 
-[data-testid="stAppViewContainer"] {
-    background: radial-gradient(ellipse 80% 60% at 50% -10%, #1a1040 0%, #0A0A0F 60%) !important;
-}
+  [data-testid="stAppViewContainer"] {
+    background:
+      radial-gradient(ellipse 70% 50% at 20% 10%, rgba(56,189,248,.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 90%, rgba(129,140,248,.07) 0%, transparent 60%),
+      var(--bg) !important;
+  }
 
-[data-testid="stHeader"] { display: none !important; }
-[data-testid="stToolbar"] { display: none !important; }
-footer { display: none !important; }
-#MainMenu { display: none !important; }
-[data-testid="stSidebar"] { display: none !important; }
-
-/* ── Block container ── */
-.block-container {
-    max-width: 860px !important;
-    padding: 0 24px 80px 24px !important;
-    margin: 0 auto !important;
-}
-
-/* ── Hero Header ── */
-.hero-wrap {
+  /* ── Hero header ── */
+  .hero {
     text-align: center;
-    padding: 64px 0 40px;
-    position: relative;
-}
-
-.hero-badge {
+    padding: 3rem 1rem 2rem;
+  }
+  .hero-badge {
     display: inline-block;
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.2em;
+    background: linear-gradient(135deg, rgba(56,189,248,.15), rgba(129,140,248,.15));
+    border: 1px solid rgba(56,189,248,.3);
+    color: var(--accent);
+    font-family: 'Syne', sans-serif;
+    font-size: .72rem;
+    letter-spacing: .18em;
     text-transform: uppercase;
-    color: #8B5CF6;
-    border: 1px solid #8B5CF633;
-    background: #8B5CF610;
-    padding: 6px 16px;
-    border-radius: 100px;
-    margin-bottom: 24px;
-}
-
-.hero-title {
-    font-size: clamp(48px, 8vw, 80px);
+    padding: .3rem .9rem;
+    border-radius: 99px;
+    margin-bottom: 1.2rem;
+  }
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.4rem, 6vw, 3.8rem);
     font-weight: 800;
-    line-height: 1.0;
-    letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #E8E4D9 30%, #8B5CF6 70%, #EC4899 100%);
+    line-height: 1.05;
+    background: linear-gradient(135deg, #e2e8f0 30%, var(--accent) 70%, var(--accent2) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: 8px;
-}
+    margin: 0;
+  }
+  .hero-sub {
+    color: var(--muted);
+    font-size: .85rem;
+    margin-top: .7rem;
+    letter-spacing: .04em;
+  }
 
-.hero-sub {
-    font-family: 'Space Mono', monospace;
-    font-size: 13px;
-    color: #8B5CF6;
-    letter-spacing: 0.15em;
-    margin-bottom: 20px;
-}
-
-.hero-desc {
-    font-size: 17px;
-    color: #9D9A92;
-    max-width: 480px;
-    margin: 0 auto 40px;
-    line-height: 1.7;
-    font-weight: 400;
-}
-
-/* ── Glowing divider ── */
-.glow-line {
-    width: 120px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #8B5CF6, #EC4899, transparent);
-    margin: 0 auto 48px;
-    border-radius: 2px;
-}
-
-/* ── Subject Chips ── */
-.chips-label {
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: #5a576e;
-    margin-bottom: 14px;
-}
-
-.chips-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 32px;
-}
-
-.chip {
-    font-family: 'Space Mono', monospace;
-    font-size: 12px;
-    padding: 8px 18px;
-    border-radius: 100px;
-    border: 1px solid #2a2740;
-    background: #12111a;
-    color: #9D9A92;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.chip:hover, .chip.active {
-    border-color: #8B5CF6;
-    color: #c4b5fd;
-    background: #1e1b2e;
-}
-
-/* ── Input Card ── */
-.input-card {
-    background: #12111a;
-    border: 1px solid #1e1b2e;
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 28px;
-    margin-bottom: 28px;
+    padding: 1.6rem 2rem;
+    margin-bottom: 1.2rem;
     position: relative;
     overflow: hidden;
-}
-
-.input-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #8B5CF660, transparent);
-}
-
-.input-card-title {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #5a576e;
-    margin-bottom: 16px;
-    font-family: 'Space Mono', monospace;
-}
-
-/* ── Streamlit overrides ── */
-/* Text area */
-.stTextArea textarea {
-    background: #0d0c15 !important;
-    border: 1px solid #2a2740 !important;
-    border-radius: 12px !important;
-    color: #E8E4D9 !important;
-    font-family: 'Syne', sans-serif !important;
-    font-size: 15px !important;
-    padding: 16px !important;
-    resize: vertical !important;
-    transition: border-color 0.2s !important;
-}
-
-.stTextArea textarea:focus {
-    border-color: #8B5CF6 !important;
-    box-shadow: 0 0 0 3px #8B5CF620 !important;
-    outline: none !important;
-}
-
-.stTextArea label {
-    color: #5a576e !important;
-    font-family: 'Space Mono', monospace !important;
-    font-size: 11px !important;
-    letter-spacing: 0.15em !important;
-    text-transform: uppercase !important;
-}
-
-/* Select box */
-.stSelectbox > div > div {
-    background: #0d0c15 !important;
-    border: 1px solid #2a2740 !important;
-    border-radius: 12px !important;
-    color: #E8E4D9 !important;
-    font-family: 'Syne', sans-serif !important;
-}
-
-.stSelectbox label {
-    color: #5a576e !important;
-    font-family: 'Space Mono', monospace !important;
-    font-size: 11px !important;
-    letter-spacing: 0.15em !important;
-    text-transform: uppercase !important;
-}
-
-/* Button */
-.stButton > button {
-    width: 100%;
-    background: linear-gradient(135deg, #7C3AED, #8B5CF6) !important;
-    color: #fff !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 16px 32px !important;
-    font-family: 'Syne', sans-serif !important;
-    font-size: 15px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.06em !important;
-    cursor: pointer !important;
-    transition: all 0.25s ease !important;
-    position: relative !important;
-    overflow: hidden !important;
-}
-
-.stButton > button:hover {
-    background: linear-gradient(135deg, #6D28D9, #7C3AED) !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 8px 32px #8B5CF640 !important;
-}
-
-.stButton > button:active {
-    transform: translateY(0) !important;
-}
-
-/* Answer card */
-.answer-card {
-    background: #12111a;
-    border: 1px solid #1e1b2e;
-    border-radius: 16px;
-    padding: 32px;
-    margin-top: 28px;
-    position: relative;
-    overflow: hidden;
-    animation: fadeSlideIn 0.4s ease;
-}
-
-@keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(16px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.answer-card::before {
+  }
+  .card::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, #7C3AED, #EC4899);
-}
-
-.answer-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.15em;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    opacity: .6;
+  }
+  .card-label {
+    font-size: .65rem;
+    letter-spacing: .18em;
     text-transform: uppercase;
-    color: #8B5CF6;
-    margin-bottom: 20px;
-}
+    color: var(--accent);
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    margin-bottom: .5rem;
+  }
 
-.answer-tag::before {
-    content: '';
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #8B5CF6;
-    box-shadow: 0 0 8px #8B5CF6;
-    animation: pulse 2s ease infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.8); }
-}
-
-.answer-body {
-    font-size: 16px;
-    line-height: 1.8;
-    color: #C9C5BC;
-}
-
-/* ── Stats row ── */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 48px;
-}
-
-.stat-card {
-    background: #12111a;
-    border: 1px solid #1e1b2e;
-    border-radius: 14px;
-    padding: 20px 24px;
-    text-align: center;
-}
-
-.stat-number {
-    font-size: 28px;
-    font-weight: 800;
-    background: linear-gradient(135deg, #8B5CF6, #EC4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -0.02em;
-}
-
-.stat-label {
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    color: #5a576e;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-top: 4px;
-}
-
-/* ── History ── */
-.history-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 18px;
-    background: #0d0c15;
-    border: 1px solid #1a1828;
+  /* ── Question box ── */
+  .question-box {
+    background: linear-gradient(135deg, rgba(56,189,248,.06), rgba(129,140,248,.06));
+    border: 1px solid rgba(56,189,248,.2);
     border-radius: 12px;
-    margin-bottom: 12px;
-    cursor: pointer;
-    transition: border-color 0.2s;
-}
+    padding: 1.4rem 1.6rem;
+    margin: 1.2rem 0;
+  }
+  .question-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .q-num {
+    font-family: 'Syne', sans-serif;
+    font-size: .7rem;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: .5rem;
+  }
 
-.history-item:hover { border-color: #2a2740; }
+  /* ── Answer box ── */
+  .answer-box {
+    background: rgba(52,211,153,.04);
+    border: 1px solid rgba(52,211,153,.18);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    margin-top: 1rem;
+  }
+  .answer-header {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .65rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--success);
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    margin-bottom: .8rem;
+  }
+  .answer-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.4; transform:scale(.7); }
+  }
 
-.history-icon {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    background: #1e1b2e;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
-}
+  /* ── Source badge ── */
+  .source-badge {
+    display: inline-block;
+    font-size: .62rem;
+    padding: .2rem .6rem;
+    border-radius: 6px;
+    font-family: 'Syne', sans-serif;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .6rem;
+  }
+  .source-gemini {
+    background: rgba(56,189,248,.12);
+    border: 1px solid rgba(56,189,248,.25);
+    color: var(--accent);
+  }
+  .source-openrouter {
+    background: rgba(129,140,248,.12);
+    border: 1px solid rgba(129,140,248,.25);
+    color: var(--accent2);
+  }
 
-.history-text {
-    font-size: 14px;
-    color: #9D9A92;
-    line-height: 1.5;
-}
+  /* ── Error box ── */
+  .error-box {
+    background: rgba(248,113,113,.05);
+    border: 1px solid rgba(248,113,113,.2);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    color: var(--error);
+    font-size: .82rem;
+  }
 
-.history-meta {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    color: #3d3a50;
-    margin-top: 4px;
-}
+  /* ── Divider ── */
+  .hl { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
 
-/* ── Spinner ── */
-[data-testid="stSpinner"] {
-    color: #8B5CF6 !important;
-}
-
-/* ── Expander ── */
-.streamlit-expanderHeader {
-    background: #12111a !important;
-    border: 1px solid #1e1b2e !important;
-    border-radius: 12px !important;
-    color: #9D9A92 !important;
+  /* ── Streamlit widget overrides ── */
+  [data-testid="stSelectbox"] label,
+  [data-testid="stNumberInput"] label {
     font-family: 'Syne', sans-serif !important;
-}
+    font-size: .7rem !important;
+    letter-spacing: .15em !important;
+    text-transform: uppercase !important;
+    color: var(--muted) !important;
+    font-weight: 600 !important;
+  }
 
-/* ── Columns gap ── */
-[data-testid="column"] { padding: 0 8px !important; }
+  div[data-baseweb="select"] > div,
+  div[data-baseweb="input"] > div > input {
+    background: var(--surface) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 10px !important;
+    font-family: 'DM Mono', monospace !important;
+  }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0A0A0F; }
-::-webkit-scrollbar-thumb { background: #2a2740; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #8B5CF6; }
+  div[data-baseweb="select"] > div:focus-within,
+  div[data-baseweb="input"] > div:focus-within {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(56,189,248,.12) !important;
+  }
+
+  [data-testid="baseButton-primary"],
+  [data-testid="stButton"] > button {
+    background: linear-gradient(135deg, var(--accent), var(--accent2)) !important;
+    color: #0b0f1a !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-family: 'Syne', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: .82rem !important;
+    letter-spacing: .1em !important;
+    text-transform: uppercase !important;
+    padding: .6rem 2rem !important;
+    width: 100% !important;
+    transition: opacity .2s, transform .15s !important;
+    box-shadow: 0 4px 20px rgba(56,189,248,.2) !important;
+  }
+  [data-testid="stButton"] > button:hover {
+    opacity: .88 !important;
+    transform: translateY(-1px) !important;
+  }
+
+  [data-testid="stSpinner"] {
+    color: var(--accent) !important;
+  }
+
+  /* hide default streamlit chrome */
+  #MainMenu, footer, header { visibility: hidden; }
+  .block-container { padding-top: 0 !important; max-width: 720px !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Session state ─────────────────────────────────────────────────────────────
-if "history" not in st.session_state:
-    st.session_state.history = []
-if "answer" not in st.session_state:
-    st.session_state.answer = None
 
-# ── Hero Header ───────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hero-wrap">
-    <div class="hero-badge">⚡ Powered by AI</div>
-    <div class="hero-title">QuizVai</div>
-    <div class="hero-sub">AI Doubt Solver</div>
-    <p class="hero-desc">
-        Ask any academic doubt and get instant, precise answers.
-        From mathematics to literature — we've got you covered.
-    </p>
-</div>
-<div class="glow-line"></div>
-""", unsafe_allow_html=True)
+# ─── Firebase Init ───────────────────────────────────────────────────────────────
+@st.cache_resource
+def init_firebase():
+    if not firebase_admin._apps:
+        cred = credentials.Certificate(dict(st.secrets["firebase"]))
+        firebase_admin.initialize_app(cred)
+    return firestore.client()
 
-# ── Stats row ─────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="stats-row">
-    <div class="stat-card">
-        <div class="stat-number">50K+</div>
-        <div class="stat-label">Doubts Solved</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-number">12</div>
-        <div class="stat-label">Subjects</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-number">0.8s</div>
-        <div class="stat-label">Avg Response</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ── Input Card ────────────────────────────────────────────────────────────────
+db = init_firebase()
 
 
+# ─── Load Quiz List ──────────────────────────────────────────────────────────────
+@st.cache_data(ttl=300)
+def load_quizzes():
+    quizzes = db.collection("quizzes").stream()
+    subjects, titles = [], []
+    for q in quizzes:
+        data = q.to_dict()
+        subjects.append(data.get("subject", "Unknown"))
+        titles.append(data.get("title", "Untitled"))
+    return subjects, titles
+
+arr_sub, arr_title = load_quizzes()
 
 
-question = st.text_area(
-    "Your Question",
-    placeholder="কোন কুইজে সমস্যা??",
-    height=130,
-    label_visibility="visible"
-)
-
-
-#quiz vai AI
-
-import os
-from dotenv import load_dotenv
-from google.genai import types
-from google import genai
-
-load_dotenv()
-GEMINI_API=st.secrets["GEMINI_API"]
-
-client = genai.Client(api_key=GEMINI_API)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ── Submit ────────────────────────────────────────────────────────────────────
-if st.button("⚡ Solve My Doubt", use_container_width=True):
-    if question.strip():
-        with st.spinner("Thinking…"):
-            import time
-            time.sleep(1.2) # ← replace with real API call
-            # ── Placeholder answer (swap with Claude API response) ──
-            mock = (
-                f"****\n\n"
-                "Here is a detailed explanation for your question. "
-                "This is a placeholder response demonstrating the QuizVai interface. "
-                
-            )
-            st.session_state.answer = mock
-            
-            response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=question,
-        config=types.GenerateContentConfig(
-            system_instruction=
-            "tomar nam quizvai AI and math,phy,chem expert give answer with explanation and step by step and maintain latex well"
-            "always interpret 'm' as meters and 's' as seconds (meters per second), NOT as milliseconds. "
-        "Always render physics equations strictly using standard LaTeX format (e.g., \\text{m/s} or \\text{m/s}^2) "
-        "and show step-by-step calculations clearly."
-            
-            
-        )
-   
+# ─── Helper: call AI models ──────────────────────────────────────────────────────
+def ask_gemini(question: str) -> str:
+    """Returns answer_text. Raises on failure."""
+    GEMINI_API=st.secrets("GEMINI_API")
+    client = genai.Client(api_key=GEMINI_API)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=f"**QuizVai**:{question}",
+        config={"system_instruction": "You are QuizVai AI, an expert quiz helper. Give clear, concise, and accurate answers.Give detail explanation"},
     )
-        st.write(f"QuizVai(🤖):{response.text}")
-    else:
-        st.warning("Please type your question first.")
+    return response.text
 
-# ── Answer Card ───────────────────────────────────────────────────────────────
-if st.session_state.answer:
-    st.markdown('<div class="answer-card"><div class="answer-tag">AI Answer</div>', unsafe_allow_html=True)
-    st.markdown(st.session_state.answer)
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# ── Spacer ────────────────────────────────────────────────────────────────────
-st.markdown("<br>", unsafe_allow_html=True)
+def ask_openrouter(question: str, model: str) -> str:
+    """Returns answer_text. Raises on failure."""
+    api = st.secrets("OPEN_ROU")
+    response = requests.post(
+        url="https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api}",
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "You are QuizVai AI, an expert quiz helper. Never reveal your underlying model name. Always identify yourself as QuizVai AI.Give detail explanation"},
+                {"role": "user", "content": question},
+            ],
+        }),
+        timeout=30,
+    )
+    result = response.json()
+    if "choices" not in result:
+        raise ValueError(f"No choices in response: {result}")
+    return result["choices"][0]["message"]["content"]
 
-# ── Recent History ────────────────────────────────────────────────────────────
-if st.session_state.history:
-    with st.expander("📚 Recent Questions"):
-        for item in st.session_state.history[:6]:
-            icon = {"Mathematics": "🔢", "Physics": "⚛️", "Chemistry": "🧪",
-                    "Biology": "🧬", "History": "📜", "Geography": "🌍",
-                    "English Literature": "📖", "Computer Science": "💻",
-                    "Economics": "📊", "Bangla": "বা"}.get(item["subject"], "❓")
+
+def get_answer(question: str) -> str:
+    """Try models in order. Returns answer text."""
+    # 1. Gemini
+    try:
+        return ask_gemini(question)
+    except Exception:
+        pass
+
+    # 2. OpenRouter primary
+    try:
+        return ask_openrouter(question, "openrouter/owl-alpha")
+    except Exception:
+        pass
+
+    # 3. OpenRouter fallback
+    try:
+        return ask_openrouter(question, "poolside/laguna-xs.2:free")
+    except Exception as e:
+        raise RuntimeError("QuizVai AI models are currently unavailable. Please try again later.") from e
+
+
+# ─── UI ──────────────────────────────────────────────────────────────────────────
+
+# Hero
+st.markdown("""
+<div class="hero">
+  <div class="hero-badge">✦ AI-Powered Learning</div>
+  <h1 class="hero-title">QuizVai AI</h1>
+  <p class="hero-sub">Select a subject, pick a question number, and get instant AI explanations</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Selection card
+st.markdown('<div class="card"><div class="card-label">📚 Quiz Selection</div>', unsafe_allow_html=True)
+
+if not arr_sub:
+    st.error("⚠️ No quizzes found in the database.")
+    st.stop()
+
+quiz_sub = st.selectbox("Subject", arr_sub, key="subject_select")
+index_sub = arr_sub.index(quiz_sub)
+quiz_title = arr_title[index_sub]
+
+st.markdown(f'<p style="font-size:.72rem;color:#64748b;margin-top:-.3rem;margin-bottom:.8rem;">📖 Topic: <span style="color:#e2e8f0">{quiz_title}</span></p>', unsafe_allow_html=True)
+
+num = st.number_input("Question Number", min_value=1, step=1, value=1, key="q_num")
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Submit button
+submitted = st.button("🔍 Get Answer", key="submit_btn")
+
+# Answer section
+if submitted:
+    docs = db.collection("quizzes").where("subject", "==", quiz_sub).where("title", "==", quiz_title).get()
+
+    if not docs:
+        st.markdown('<div class="error-box">⚠️ Quiz not found in the database.</div>', unsafe_allow_html=True)
+        st.stop()
+
+    quiz = docs[0].to_dict()
+    questions = quiz.get("questions", [])
+
+    if num < 1 or num > len(questions):
+        st.markdown(f'<div class="error-box">⚠️ Question {num} does not exist. This quiz has {len(questions)} question(s).</div>', unsafe_allow_html=True)
+        st.stop()
+
+    question_text = questions[int(num) - 1]["text"]
+
+    # Display question
+    st.markdown(f"""
+    <div class="question-box">
+      <div class="q-num">Question {num} of {len(questions)}</div>
+      <p class="question-text">{question_text}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Fetch answer
+    with st.spinner("Thinking…"):
+        try:
+            answer = get_answer(question_text)
             st.markdown(f"""
-            <div class="history-item">
-                <div class="history-icon">{icon}</div>
-                <div>
-                    <div class="history-text">{item["q"]}</div>
-                    <div class="history-meta">{item["subject"]} · {item["level"]}</div>
-                </div>
+            <div class="answer-box">
+              <div class="answer-header">
+                <span class="answer-dot"></span>
+                AI Answer
+              </div>
+              <span class="source-badge source-gemini">&#129504; QuizVai AI</span>
+              <div style="font-size:.88rem;line-height:1.75;color:#cbd5e1;">{answer}</div>
             </div>
             """, unsafe_allow_html=True)
-
-# ── Footer ────────────────────────────────────────────────────────────────────
-st.markdown("""
-<br><br>
-<div style="text-align:center; font-family:'Space Mono',monospace; font-size:11px;
-            color:cyan; letter-spacing:0.12em; padding-bottom:40px;">
-    QUIZVAI · AI DOUBT SOLVER · BUILT By ABIDUR RAHAMAN 
-</div>
-""", unsafe_allow_html=True)
+        except RuntimeError as e:
+            st.markdown(f'<div class="error-box">❌ {e}</div>', unsafe_allow_html=True)
