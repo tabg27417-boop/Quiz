@@ -288,7 +288,7 @@ arr_sub, arr_title = load_quizzes()
 # ─── Helper: call AI models ──────────────────────────────────────────────────────
 def ask_gemini(question: str) -> str:
     """Returns answer_text. Raises on failure."""
-    GEMINI_API=st.secrets("GEMINI_API")
+    GEMINI_API=st.secrets["GEMINI_API"]
     client = genai.Client(api_key=GEMINI_API)
     response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -300,7 +300,7 @@ def ask_gemini(question: str) -> str:
 
 def ask_openrouter(question: str, model: str) -> str:
     """Returns answer_text. Raises on failure."""
-    api = st.secrets("OPEN_ROU")
+    api = st.secrets["OPEN_ROU"]
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
         headers={
