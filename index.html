@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QuizVai – Learn, Play, Compete</title>
+  <title>QuizVai – Learn, Compete</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
@@ -390,7 +390,10 @@
                   ? '<span class="badge green"><i class="fa-solid fa-check"></i> Done (' + att.score + '/' + att.total + ')</span>'
                   : '<span class="badge orange"><i class="fa-solid fa-clock"></i> Pending</span>') + '</td>' +
                 '<td>' + (att
-                  ? '<a class="btn sm gray" href="result.html?id=' + att.id + '"><i class="fa-solid fa-chart-bar"></i> Result</a>'
+                  ? '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+                    '<a class="btn sm gray" href="result.html?id=' + att.id + '"><i class="fa-solid fa-chart-bar"></i> Result</a>' +
+                    '<a class="btn sm" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;" href="quiz.html?id=' + qid + '&practice=true" title="Practice this quiz again — won\'t affect your score"><i class="fa-solid fa-rotate-right"></i> Practice</a>' +
+                    '</div>'
                   : '<a class="btn sm blue" href="quiz.html?id=' + qid + '"><i class="fa-solid fa-play"></i> Start</a>') + '</td></tr>';
             });
 
