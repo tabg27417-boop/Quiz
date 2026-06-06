@@ -49,7 +49,6 @@
             <option value="all">All</option>
           </select>
         </div>
-        <!-- ✅ NEW: Public filter -->
         <div>
           <label style="margin-top:0;"><i class="fa-solid fa-globe"></i> Visibility</label>
           <select id="filterVisibility" onchange="renderQuizList()" style="width:auto;min-width:130px;">
@@ -103,7 +102,6 @@
           </div>
         </div>
 
-        <!-- ✅ NEW: Public Quiz Toggle -->
         <div class="form-group">
           <label><i class="fa-solid fa-globe"></i> Quiz Visibility</label>
           <div id="visibilityToggleWrap" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;">
@@ -117,7 +115,6 @@
             </label>
           </div>
         </div>
-        <!-- Visibility info box -->
         <div id="visibilityPreview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
           <i class="fa-solid fa-lock" id="visPreviewIcon" style="font-size:20px;color:var(--text3);"></i>
           <div>
@@ -126,7 +123,6 @@
           </div>
         </div>
 
-        <!-- Timer preview -->
         <div id="timerPreview" style="display:none;background:var(--primary-light);border:1px solid var(--primary);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
           <i class="fa-solid fa-stopwatch" style="color:var(--primary);font-size:20px;"></i>
           <div>
@@ -145,7 +141,6 @@
             <span class="badge gray" id="setupSubjectBadge"></span>
             <strong id="setupTitleBadge"></strong>
             <span class="badge orange" id="setupTimerBadge" style="display:none;"></span>
-            <!-- ✅ NEW: Public badge in step 2 -->
             <span class="badge green" id="setupPublicBadge" style="display:none;"><i class="fa-solid fa-globe"></i> Public</span>
           </div>
           <button class="btn sm gray" onclick="backToSetup()"><i class="fa-solid fa-arrow-left"></i> Back</button>
@@ -210,7 +205,6 @@
     <div id="accessTab" class="tabContent box" style="display:none">
       <h2><i class="fa-solid fa-key" style="color:var(--primary);"></i> Manage Access</h2>
 
-      <!-- ✅ NEW: Public quizzes notice -->
       <div id="publicQuizzesNotice" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px 16px;margin-bottom:16px;align-items:flex-start;gap:10px;">
         <i class="fa-solid fa-circle-info" style="color:#059669;margin-top:2px;"></i>
         <div>
@@ -319,7 +313,6 @@
           <label><i class="fa-regular fa-clock"></i> Time Limit (minutes) <span style="font-weight:400;color:var(--text3);">— optional</span></label>
           <input id="editTimeLimit" type="number" min="1" max="300" placeholder="Leave blank for no limit">
         </div>
-        <!-- ✅ NEW: Visibility toggle in edit modal -->
         <div class="form-group">
           <label><i class="fa-solid fa-globe"></i> Quiz Visibility</label>
           <div style="display:flex;gap:10px;margin-top:6px;">
@@ -335,7 +328,6 @@
         </div>
       </div>
 
-      <!-- ✅ NEW: Public quiz info in edit modal -->
       <div id="editPublicNotice" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#065f46;">
         <i class="fa-solid fa-globe"></i> <strong>Public Quiz:</strong> All registered students in the selected batch can attempt this quiz without individual access grants.
       </div>
@@ -349,8 +341,9 @@
         <div id="editQuestionsContainer"></div>
       </div>
 
+      <!-- ✅ FIX: dedicated id="editSaveBtn" so selector never matches the wrong button -->
       <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap;">
-        <button class="btn green" onclick="saveEditedQuiz()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+        <button class="btn green" id="editSaveBtn" onclick="saveEditedQuiz()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
         <button class="btn gray" onclick="closeEditModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
       </div>
     </div>
@@ -509,7 +502,6 @@
       } else {
         timerBadge.style.display = 'none';
       }
-      // ✅ Show public badge
       var publicBadge = document.getElementById('setupPublicBadge');
       publicBadge.style.display = isPublic ? 'inline-flex' : 'none';
       document.getElementById('quizSetup').style.display = 'none';
@@ -613,7 +605,7 @@
       var quizData = {
         batch: quizSetupData.batch, subject: quizSetupData.subject, title: quizSetupData.title,
         questions: qs, createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        isPublic: quizSetupData.isPublic   // ✅ Store isPublic flag
+        isPublic: quizSetupData.isPublic
       };
       if (quizSetupData.timeLimit > 0) quizData.timeLimit = quizSetupData.timeLimit;
       db.collection('quizzes').add(quizData)
@@ -681,7 +673,6 @@
         var timeLimitCell = q.data.timeLimit
           ? '<span class="badge orange"><i class="fa-regular fa-clock"></i> ' + q.data.timeLimit + ' min</span>'
           : '<span style="color:var(--text3);font-size:12px;">None</span>';
-        // ✅ Visibility badge
         var visCell = q.data.isPublic
           ? '<span class="badge green"><i class="fa-solid fa-globe"></i> Public</span>'
           : '<span class="badge gray"><i class="fa-solid fa-lock"></i> Private</span>';
@@ -718,11 +709,9 @@
       document.getElementById('editTimeLimit').value = d.timeLimit || '';
       var batchRadios = document.querySelectorAll('input[name="editBatch"]');
       batchRadios.forEach(function(r) { r.checked = r.value === (d.batch || 'SSC'); });
-      // ✅ Set visibility radios
       var visRadios = document.querySelectorAll('input[name="editVisibility"]');
       visRadios.forEach(function(r) { r.checked = r.value === (d.isPublic ? 'public' : 'private'); });
       document.getElementById('editPublicNotice').style.display = d.isPublic ? 'block' : 'none';
-      // Deep copy questions
       editQuizQuestions = d.questions.map(function(q) { return Object.assign({}, q); });
       renderEditQuestions();
       document.getElementById('editModal').style.display = 'block';
@@ -739,7 +728,6 @@
       var html = '';
       for (var i = 0; i < editQuizQuestions.length; i++) {
         var q = editQuizQuestions[i];
-        var idx = i;
         html += '<div class="q-block" style="margin-bottom:14px;position:relative;" id="editQ_' + i + '">';
         html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
         html += '<strong style="color:var(--primary);display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-circle-question"></i> Question ' + (i + 1) + '</strong>';
@@ -808,7 +796,9 @@
     }
 
     function saveEditedQuiz() {
+      // ✅ FIX: collect from DOM first, then validate, then show loading
       collectEditQuestions();
+
       var qid = document.getElementById('editQuizId').value;
       var batch = document.querySelector('input[name="editBatch"]:checked');
       var subject = document.getElementById('editSubject').value.trim();
@@ -816,6 +806,7 @@
       var timeLimit = parseInt(document.getElementById('editTimeLimit').value) || 0;
       var visChecked = document.querySelector('input[name="editVisibility"]:checked');
       var isPublic = visChecked ? visChecked.value === 'public' : false;
+
       if (!batch) { flash('Select a batch', false); return; }
       if (!subject) { flash('Enter subject name', false); return; }
       if (!title) { flash('Enter quiz title', false); return; }
@@ -825,8 +816,11 @@
         if (!q.text) { flash('Question ' + (i + 1) + ' has no text', false); return; }
         if (!q.a || !q.b || !q.c || !q.d) { flash('Question ' + (i + 1) + ' is missing options', false); return; }
       }
-      var saveBtn = document.querySelector('#editModal .btn.green');
+
+      // ✅ FIX: use dedicated ID instead of fragile .btn.green selector
+      var saveBtn = document.getElementById('editSaveBtn');
       if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; }
+
       var qs = editQuizQuestions.map(function(q, i) {
         var copy = Object.assign({}, q);
         if (!copy.id) copy.id = 'q' + (i + 1) + '_' + Date.now();
@@ -843,24 +837,28 @@
       db.collection('quizzes').doc(qid).update(updateData)
         .then(function() {
           flash('Quiz updated successfully!');
+          // ✅ FIX: use dedicated ID
+          var saveBtn = document.getElementById('editSaveBtn');
           if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes'; }
           closeEditModal();
           loadAll();
         })
         .catch(function(e) {
           flash('Error saving: ' + e.message, false);
+          // ✅ FIX: use dedicated ID
+          var saveBtn = document.getElementById('editSaveBtn');
           if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes'; }
         });
     }
 
     // ============ ACCESS TAB ============
     function renderAccessTab() {
-      // ✅ Show public quizzes notice
       var publicQuizzes = allQuizzes.filter(function(q) { return q.data.isPublic === true; });
       var noticeEl = document.getElementById('publicQuizzesNotice');
       var listEl = document.getElementById('publicQuizzesList');
       if (publicQuizzes.length > 0) {
-        noticeEl.style.display = 'flex';        var names = publicQuizzes.map(function(q) {
+        noticeEl.style.display = 'flex';
+        var names = publicQuizzes.map(function(q) {
           return '[' + (q.data.batch || '?') + '] ' + (q.data.subject ? q.data.subject + ' — ' : '') + q.data.title;
         });
         listEl.textContent = names.join(' • ');
@@ -877,7 +875,6 @@
           var s = students[i], sBatch = s.data.batch || 'SSC';
           var studentAccess = allAccess.filter(function(a) { return a.data.userId === s.id; });
           var accessQuizIds = studentAccess.map(function(a) { return a.data.quizId; });
-          // ✅ Only private quizzes count for access management
           var batchPrivateQuizzes = allQuizzes.filter(function(q) { return (q.data.batch || '') === sBatch && !q.data.isPublic; });
           var batchPublicQuizzes = allQuizzes.filter(function(q) { return (q.data.batch || '') === sBatch && q.data.isPublic === true; });
           var hasAll = batchPrivateQuizzes.length > 0 && batchPrivateQuizzes.every(function(q) { return accessQuizIds.indexOf(q.id) !== -1; });
@@ -890,7 +887,6 @@
           html += '<div><strong style="font-size:15px;">' + s.data.name + '</strong> <span class="badge ' + batchClass + '" style="font-size:11px;"><i class="fa-solid ' + (sBatch === 'HSC' ? 'fa-graduation-cap' : 'fa-school') + '"></i> ' + sBatch + '</span>';
           html += '<div style="color:var(--text3);font-size:12.5px;">' + s.data.email + '</div></div></div>';
           html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
-          // ✅ Show public quiz count separately
           if (batchPublicQuizzes.length > 0) {
             html += '<span class="badge green" title="Public quizzes auto-available"><i class="fa-solid fa-globe"></i> ' + batchPublicQuizzes.length + ' public</span>';
           }
@@ -920,14 +916,12 @@
       document.getElementById('studentAccessList').innerHTML = html;
       var sOpts = allStudents.map(function(s) { return '<option value="' + s.id + '">' + s.data.name + ' (' + (s.data.batch || 'SSC') + ')</option>'; }).join('');
       document.getElementById('selStudent').innerHTML = sOpts || '<option>No students</option>';
-      // ✅ Only show private quizzes in the manual grant dropdown
       var privateQuizzes = allQuizzes.filter(function(q) { return !q.data.isPublic; });
       var qOpts = privateQuizzes.map(function(q) { return '<option value="' + q.id + '">[' + (q.data.batch || '?') + '] ' + (q.data.subject ? q.data.subject + ' - ' : '') + q.data.title + '</option>'; }).join('');
       document.getElementById('selQuiz').innerHTML = qOpts || '<option>No private quizzes</option>';
       document.getElementById('selQuizPublicNote').textContent = '';
     }
 
-    // ✅ Note if selected quiz is public
     function checkSelQuizPublic() {
       var qid = document.getElementById('selQuiz').value;
       var quiz = allQuizzes.find(function(q) { return q.id === qid; });
@@ -937,7 +931,6 @@
 
     function grantAll(userId, batch) {
       if (!confirm('Grant access to ALL private ' + batch + ' quizzes?')) return;
-      // ✅ Only grant private quizzes
       var batchQuizzes = allQuizzes.filter(function(q) { return (q.data.batch || '') === batch && !q.data.isPublic; });
       var existing = allAccess.filter(function(a) { return a.data.userId === userId; }).map(function(a) { return a.data.quizId; });
       var promises = [], count = 0;
@@ -1025,4 +1018,4 @@
     }
   </script>
 </body>
-  </html>
+</html>
