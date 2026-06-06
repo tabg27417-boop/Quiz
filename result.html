@@ -26,7 +26,26 @@
   <script src="app.js"></script>
   <script>
     var attemptId = new URLSearchParams(location.search).get('id');
-    if (!attemptId) {
+    var isPracticeResult = new URLSearchParams(location.search).get('practice') === 'true';
+
+    // ── PRACTICE MODE: render from sessionStorage, no Firestore ──
+    if (isPracticeResult) {
+      firebase.auth().onAuthStateChanged(function(u) {
+        if (!u) { location = 'index.html'; return; }
+        db.collection('users').doc(u.uid).get().then(function(uDoc) {
+          var userData = uDoc.exists ? uDoc.data() : { name: 'Student', batch: '' };
+          buildNav(userData, false);
+          var raw = sessionStorage.getItem('practiceResult');
+          if (!raw) {
+            document.getElementById('loading').innerHTML = '<p style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> No practice result found. Please retake the quiz.</p>';
+            return;
+          }
+          var pr = JSON.parse(raw);
+          document.getElementById('loading').style.display = 'none';
+          renderResult(pr.quizData, pr, userData.name, userData.batch || '', false, false, true);
+        });
+      });
+    } else if (!attemptId) {
       document.getElementById('loading').innerHTML = '<p style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> No result ID found</p>';
     } else {
       firebase.auth().onAuthStateChanged(function(u) {
@@ -35,22 +54,25 @@
       });
     }
 
+    function buildNav(userData, isAdmin) {
+      var nav = document.getElementById('navRight');
+      var batch = userData.batch || '';
+      var isHSC = batch === 'HSC';
+      var batchHtml = batch
+        ? '<span style="background:rgba(255,255,255,0.2);color:white;padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:700;border:1px solid rgba(255,255,255,0.3);display:inline-flex;align-items:center;gap:5px;"><i class="fa-solid ' + (isAdmin ? 'fa-shield-halved' : isHSC ? 'fa-graduation-cap' : 'fa-school') + '"></i>' + (isAdmin ? 'Admin' : batch) + '</span>' : '';
+      nav.innerHTML =
+        '<span style="color:rgba(255,255,255,0.9);font-size:13px;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-circle-user" style="font-size:15px;"></i> ' + userData.name + '</span>' +
+        batchHtml +
+        '<a href="' + (isAdmin ? 'admin.html' : 'index.html') + '" style="color:#fff;text-decoration:none;font-size:13px;display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);font-weight:600;"><i class="fa-solid fa-house"></i> Dashboard</a>' +
+        '<button onclick="logout()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:7px 16px;border-radius:20px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;display:inline-flex;align-items:center;gap:6px;" onmouseover="this.style.background=\'rgba(220,38,38,0.5)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.15)\'"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>';
+    }
+
     function loadResult(u) {
       var userData = null, isAdmin = false;
       db.collection('users').doc(u.uid).get()
         .then(function(uDoc) {
           userData = uDoc.data(); isAdmin = userData.isAdmin;
-          // Build nav with dashboard link
-          var nav = document.getElementById('navRight');
-          var batch = userData.batch || '';
-          var isHSC = batch === 'HSC';
-          var batchHtml = batch
-            ? '<span style="background:rgba(255,255,255,0.2);color:white;padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:700;border:1px solid rgba(255,255,255,0.3);display:inline-flex;align-items:center;gap:5px;"><i class="fa-solid ' + (isAdmin ? 'fa-shield-halved' : isHSC ? 'fa-graduation-cap' : 'fa-school') + '"></i>' + (isAdmin ? 'Admin' : batch) + '</span>' : '';
-          nav.innerHTML =
-            '<span style="color:rgba(255,255,255,0.9);font-size:13px;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-circle-user" style="font-size:15px;"></i> ' + userData.name + '</span>' +
-            batchHtml +
-            '<a href="' + (isAdmin ? 'admin.html' : 'index.html') + '" style="color:#fff;text-decoration:none;font-size:13px;display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);font-weight:600;"><i class="fa-solid fa-house"></i> Dashboard</a>' +
-            '<button onclick="logout()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:7px 16px;border-radius:20px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;display:inline-flex;align-items:center;gap:6px;" onmouseover="this.style.background=\'rgba(220,38,38,0.5)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.15)\'"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>';
+          buildNav(userData, isAdmin);
           return db.collection('attempts').doc(attemptId).get();
         })
         .then(function(aDoc) {
@@ -68,7 +90,7 @@
           return studentPromise.then(function(sDoc) {
             var studentName = userData.name, studentBatch = userData.batch || '';
             if (sDoc && sDoc.exists) { studentName = sDoc.data().name; studentBatch = sDoc.data().batch || ''; }
-            renderResult(quiz, attempt, studentName, studentBatch, isAdmin, attempt.userId !== u.uid);
+            renderResult(quiz, attempt, studentName, studentBatch, isAdmin, attempt.userId !== u.uid, false);
           });
         })
         .catch(function(e) {
@@ -78,7 +100,7 @@
         });
     }
 
-    function renderResult(quiz, attempt, studentName, studentBatch, isAdmin, isOtherStudent) {
+    function renderResult(quiz, attempt, studentName, studentBatch, isAdmin, isOtherStudent, isPractice) {
       var score = attempt.score, total = attempt.total;
       var pct = Math.round((score / total) * 100);
       var grade = pct >= 70 ? 'good' : pct >= 40 ? 'mid' : 'bad';
@@ -93,6 +115,15 @@
       if (attempt.timeTaken) timeStr = Math.floor(attempt.timeTaken / 60) + 'm ' + (attempt.timeTaken % 60) + 's';
 
       var html = '<div class="box">';
+
+      // Practice mode banner
+      if (isPractice) {
+        html += '<div style="background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(79,70,229,0.08));border:1.5px solid rgba(124,58,237,0.35);border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">';
+        html += '<i class="fa-solid fa-rotate-right" style="color:#7c3aed;font-size:20px;flex-shrink:0;"></i>';
+        html += '<div><strong style="color:#7c3aed;font-size:14px;display:block;">Practice Mode Result</strong>';
+        html += '<span style="color:var(--text2);font-size:12.5px;">This is a practice attempt. Your original score and leaderboard position are unchanged.</span></div>';
+        html += '</div>';
+      }
 
       if (isAdmin && isOtherStudent) {
         html += '<div style="background:var(--surface2);padding:12px 16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--border);display:flex;align-items:center;gap:8px;">';
@@ -153,6 +184,9 @@
         html += '<div style="display:flex;gap:8px;align-items:flex-start;flex:1;">';
         html += '<span style="background:var(--primary);color:#fff;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;flex-shrink:0;">Q' + (i+1) + '</span>';
         html += '<strong>' + q.text + '</strong></div>' + statusBadge + '</div>';
+        if (q.imageUrl && q.imageUrl.trim()) {
+          html += '<div style="margin-bottom:12px;"><img src="' + q.imageUrl.trim() + '" alt="Question image" style="max-width:100%;max-height:320px;border-radius:8px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;" onerror="this.style.display=\'none\'"></div>';
+        }
         var opts = ['a', 'b', 'c', 'd'];
         for (var j = 0; j < opts.length; j++) {
           var o = opts[j];
@@ -167,7 +201,12 @@
       }
       html += '</div>';
 
-      html += '<div class="center" style="margin:24px 0;"><a class="btn blue" href="' + (isAdmin ? 'admin.html' : 'index.html') + '"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a></div>';
+      html += '<div class="center" style="margin:24px 0;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">';
+      if (isPractice) {
+        html += '<a class="btn" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;" href="quiz.html?id=' + attempt.quizId + '&practice=true"><i class="fa-solid fa-rotate-right"></i> Practice Again</a>';
+      }
+      html += '<a class="btn blue" href="' + (isAdmin ? 'admin.html' : 'index.html') + '"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>';
+      html += '</div>';
 
       document.getElementById('loading').style.display = 'none';
       document.getElementById('resultArea').innerHTML = html;
