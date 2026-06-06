@@ -211,7 +211,7 @@
       <h2><i class="fa-solid fa-key" style="color:var(--primary);"></i> Manage Access</h2>
 
       <!-- ✅ NEW: Public quizzes notice -->
-      <div id="publicQuizzesNotice" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;">
+      <div id="publicQuizzesNotice" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px 16px;margin-bottom:16px;align-items:flex-start;gap:10px;">
         <i class="fa-solid fa-circle-info" style="color:#059669;margin-top:2px;"></i>
         <div>
           <strong style="color:#065f46;">Public Quizzes are auto-available</strong>
@@ -651,7 +651,7 @@
         renderQuizList();
         renderAccessTab();
         buildSubjectFilter();
-      });
+      }).catch(function(e) { flash('Error loading data: ' + e.message, false); });
     }
 
     function buildSubjectFilter() {
@@ -784,11 +784,11 @@
       var corrects = document.querySelectorAll('.eq-correct');
       var exps = document.querySelectorAll('.eq-exp');
       var imgs = document.querySelectorAll('.eq-img');
-      texts.forEach(function(el) { editQuizQuestions[el.dataset.idx].text = el.value.trim(); });
-      opts.forEach(function(el) { editQuizQuestions[el.dataset.idx][el.dataset.opt] = el.value.trim(); });
-      corrects.forEach(function(el) { editQuizQuestions[el.dataset.idx].correct = el.value; });
-      exps.forEach(function(el) { editQuizQuestions[el.dataset.idx].explanation = el.value.trim(); });
-      imgs.forEach(function(el) { editQuizQuestions[el.dataset.idx].imageUrl = el.value.trim(); });
+      texts.forEach(function(el) { var i = parseInt(el.dataset.idx); if (!isNaN(i)) editQuizQuestions[i].text = el.value.trim(); });
+      opts.forEach(function(el) { var i = parseInt(el.dataset.idx); if (!isNaN(i)) editQuizQuestions[i][el.dataset.opt] = el.value.trim(); });
+      corrects.forEach(function(el) { var i = parseInt(el.dataset.idx); if (!isNaN(i)) editQuizQuestions[i].correct = el.value; });
+      exps.forEach(function(el) { var i = parseInt(el.dataset.idx); if (!isNaN(i)) editQuizQuestions[i].explanation = el.value.trim(); });
+      imgs.forEach(function(el) { var i = parseInt(el.dataset.idx); if (!isNaN(i)) editQuizQuestions[i].imageUrl = el.value.trim(); });
     }
 
     function addEditQuestion() {
@@ -810,29 +810,47 @@
     function saveEditedQuiz() {
       collectEditQuestions();
       var qid = document.getElementById('editQuizId').value;
-      var batch = document.querySelector('input[name="editBatch"]:checked').value;
+      var batch = document.querySelector('input[name="editBatch"]:checked');
       var subject = document.getElementById('editSubject').value.trim();
       var title = document.getElementById('editTitle').value.trim();
       var timeLimit = parseInt(document.getElementById('editTimeLimit').value) || 0;
-      var isPublic = document.querySelector('input[name="editVisibility"]:checked').value === 'public'; // ✅
+      var visChecked = document.querySelector('input[name="editVisibility"]:checked');
+      var isPublic = visChecked ? visChecked.value === 'public' : false;
+      if (!batch) { flash('Select a batch', false); return; }
       if (!subject) { flash('Enter subject name', false); return; }
       if (!title) { flash('Enter quiz title', false); return; }
+      if (editQuizQuestions.length === 0) { flash('Quiz must have at least 1 question', false); return; }
       for (var i = 0; i < editQuizQuestions.length; i++) {
         var q = editQuizQuestions[i];
         if (!q.text) { flash('Question ' + (i + 1) + ' has no text', false); return; }
         if (!q.a || !q.b || !q.c || !q.d) { flash('Question ' + (i + 1) + ' is missing options', false); return; }
       }
+      var saveBtn = document.querySelector('#editModal .btn.green');
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; }
       var qs = editQuizQuestions.map(function(q, i) {
         var copy = Object.assign({}, q);
         if (!copy.id) copy.id = 'q' + (i + 1) + '_' + Date.now();
         return copy;
       });
-      var updateData = { batch: batch, subject: subject, title: title, questions: qs, isPublic: isPublic }; // ✅
-      if (timeLimit > 0) updateData.timeLimit = timeLimit;
-      else updateData.timeLimit = firebase.firestore.FieldValue.delete();
+      var updateData = {
+        batch: batch.value,
+        subject: subject,
+        title: title,
+        questions: qs,
+        isPublic: isPublic,
+        timeLimit: timeLimit > 0 ? timeLimit : null
+      };
       db.collection('quizzes').doc(qid).update(updateData)
-        .then(function() { flash('Quiz updated successfully!'); closeEditModal(); loadAll(); })
-        .catch(function(e) { flash('Error: ' + e.message, false); });
+        .then(function() {
+          flash('Quiz updated successfully!');
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes'; }
+          closeEditModal();
+          loadAll();
+        })
+        .catch(function(e) {
+          flash('Error saving: ' + e.message, false);
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes'; }
+        });
     }
 
     // ============ ACCESS TAB ============
@@ -842,8 +860,7 @@
       var noticeEl = document.getElementById('publicQuizzesNotice');
       var listEl = document.getElementById('publicQuizzesList');
       if (publicQuizzes.length > 0) {
-        noticeEl.style.display = 'flex';
-        var names = publicQuizzes.map(function(q) {
+        noticeEl.style.display = 'flex';        var names = publicQuizzes.map(function(q) {
           return '[' + (q.data.batch || '?') + '] ' + (q.data.subject ? q.data.subject + ' — ' : '') + q.data.title;
         });
         listEl.textContent = names.join(' • ');
@@ -942,20 +959,23 @@
       if (!userId || !quizId) { flash('Select student and quiz', false); return; }
       db.collection('access').where('userId', '==', userId).where('quizId', '==', quizId).get()
         .then(function(snap) {
-          if (!snap.empty) { flash('Already granted', false); return; }
+          if (!snap.empty) { flash('Already granted', false); return Promise.resolve(null); }
           return db.collection('access').add({ userId: userId, quizId: quizId });
         })
-        .then(function() { flash('Access granted!'); loadAll(); });
+        .then(function(result) { if (result) { flash('Access granted!'); loadAll(); } })
+        .catch(function(e) { flash('Error: ' + e.message, false); });
     }
 
     function revokeAccess() {
       var userId = document.getElementById('selStudent').value, quizId = document.getElementById('selQuiz').value;
+      if (!userId || !quizId) { flash('Select student and quiz', false); return; }
       db.collection('access').where('userId', '==', userId).where('quizId', '==', quizId).get()
         .then(function(snap) {
-          if (snap.empty) { flash('No access found', false); return; }
+          if (snap.empty) { flash('No access found', false); return Promise.resolve(null); }
           return Promise.all(snap.docs.map(function(d) { return d.ref.delete(); }));
         })
-        .then(function() { flash('Access revoked'); loadAll(); });
+        .then(function(result) { if (result) { flash('Access revoked'); loadAll(); } })
+        .catch(function(e) { flash('Error: ' + e.message, false); });
     }
 
     // ============ RESULTS ============
@@ -978,7 +998,13 @@
             var uData = r.userDoc.data(), studentBatch = uData.batch || 'SSC';
             if (batchFilter !== 'all' && studentBatch !== batchFilter) continue;
             var pct = Math.round(r.attempt.score / r.attempt.total * 100);
-            filtered.push({ name: uData.name, batch: studentBatch, subject: r.quizDoc.data().subject || '—', quiz: r.quizDoc.data().title, score: r.attempt.score, total: r.attempt.total, pct: pct, color: pct >= 70 ? 'green' : pct >= 40 ? 'blue' : 'red', date: r.attempt.date ? new Date(r.attempt.date).toLocaleDateString() : '', id: r.attemptId });
+            var dateVal = r.attempt.date;
+            var dateStr = '';
+            if (dateVal) {
+              if (dateVal.toDate) dateStr = dateVal.toDate().toLocaleDateString();
+              else dateStr = new Date(dateVal).toLocaleDateString();
+            }
+            filtered.push({ name: uData.name, batch: studentBatch, subject: r.quizDoc.data().subject || '—', quiz: r.quizDoc.data().title, score: r.attempt.score, total: r.attempt.total, pct: pct, color: pct >= 70 ? 'green' : pct >= 40 ? 'blue' : 'red', date: dateStr, id: r.attemptId });
           }
           if (filtered.length === 0) { document.getElementById('allResults').innerHTML = '<p class="muted center">No results found</p>'; return; }
           var html = '<table><tr><th>Student</th><th>Batch</th><th>Subject</th><th>Quiz</th><th>Score</th><th>Date</th><th></th></tr>';
